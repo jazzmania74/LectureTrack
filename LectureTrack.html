@@ -305,6 +305,36 @@ body {
   animation: progressPulse 1.5s ease-in-out infinite;
 }
 
+/* ─── Custom Analysis ─── */
+.custom-controls {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+}
+.control-group { flex: 1; min-width: 200px; }
+.control-label {
+  display: block; font-size: 13px; font-weight: 700;
+  color: var(--text-secondary); margin-bottom: 8px;
+}
+.control-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.control-sep { color: var(--text-light); font-weight: 600; }
+.custom-select {
+  padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 14px;
+  font-family: inherit; background: var(--bg-white);
+  color: var(--text-primary); cursor: pointer;
+  min-width: 130px;
+}
+.custom-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5,150,105,0.15); }
+.metric-checks { gap: 12px; }
+.check-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 13px; color: var(--text-primary); cursor: pointer;
+  white-space: nowrap;
+}
+.check-label input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;
+}
+.icon-cyan { background: #E0F7FA; }
+
 /* ─── Footer ─── */
 .dash-footer { text-align: center; padding: 24px; color: var(--text-light); font-size: 12px; }
 
@@ -508,6 +538,42 @@ body {
         <canvas id="formatChart"></canvas>
         <div class="donut-legend" id="formatLegend"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Custom Analysis -->
+  <div class="section-card" style="padding:0 0 8px;">
+    <div style="padding:24px 32px 0;">
+      <div class="section-title"><span class="icon icon-cyan">🔬</span> 사용자 정의 분석</div>
+    </div>
+    <div style="padding:16px 32px 8px;">
+      <div class="custom-controls">
+        <div class="control-group">
+          <label class="control-label">📅 기간 설정</label>
+          <div class="control-row">
+            <select id="customFrom" class="custom-select"></select>
+            <span class="control-sep">~</span>
+            <select id="customTo" class="custom-select"></select>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label">📊 지표 선택</label>
+          <div class="control-row metric-checks">
+            <label class="check-label"><input type="checkbox" id="chkRevenue" checked> 💰 매출(만원)</label>
+            <label class="check-label"><input type="checkbox" id="chkCount" checked> 📚 강의횟수</label>
+            <label class="check-label"><input type="checkbox" id="chkHours"> ⏱️ 강의시간(H)</label>
+            <label class="check-label"><input type="checkbox" id="chkRate"> 💵 시간당 강의료</label>
+          </div>
+        </div>
+        <button class="ai-btn" id="customChartBtn" onclick="renderCustomChart()" style="align-self:flex-end;">📈 차트 생성</button>
+      </div>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <div class="chart-card" id="customChartWrap" style="display:none;">
+        <h3 id="customChartTitle">사용자 정의 추이 분석</h3>
+        <canvas id="customChart"></canvas>
+      </div>
+      <div class="ai-placeholder" id="customPlaceholder">기간과 지표를 선택한 후 [📈 차트 생성] 버튼을 클릭하세요.</div>
     </div>
   </div>
 
@@ -1074,6 +1140,126 @@ function renderInsights(list) {
 }
 
 /* ═══════════════════════════════════════
+   사용자 정의 분석 차트
+   ═══════════════════════════════════════ */
+var customChartInstance = null;
+
+function initCustomSelects() {
+  if (!allData || !allData.monthly || !allData.monthly.length) return;
+  var fromSel = document.getElementById('customFrom');
+  var toSel = document.getElementById('customTo');
+  fromSel.innerHTML = '';
+  toSel.innerHTML = '';
+  var months = allData.monthly.map(function(m) { return m.month; });
+  months.forEach(function(m) {
+    var label = m.replace('-', '년 ') + '월';
+    fromSel.innerHTML += '<option value="' + m + '">' + label + '</option>';
+    toSel.innerHTML += '<option value="' + m + '">' + label + '</option>';
+  });
+  // 기본: 최근 6개월
+  var startIdx = Math.max(0, months.length - 6);
+  fromSel.value = months[startIdx];
+  toSel.value = months[months.length - 1];
+}
+
+function renderCustomChart() {
+  if (!allData || !allData.monthly) { alert('데이터를 먼저 로드해주세요.'); return; }
+
+  var fromVal = document.getElementById('customFrom').value;
+  var toVal = document.getElementById('customTo').value;
+  if (fromVal > toVal) { alert('시작월이 종료월보다 클 수 없습니다.'); return; }
+
+  var chkRev = document.getElementById('chkRevenue').checked;
+  var chkCnt = document.getElementById('chkCount').checked;
+  var chkHrs = document.getElementById('chkHours').checked;
+  var chkRate = document.getElementById('chkRate').checked;
+  if (!chkRev && !chkCnt && !chkHrs && !chkRate) { alert('최소 1개 지표를 선택해주세요.'); return; }
+
+  var filtered = allData.monthly.filter(function(m) { return m.month >= fromVal && m.month <= toVal; });
+  if (filtered.length === 0) { alert('선택한 기간에 데이터가 없습니다.'); return; }
+
+  var labels = filtered.map(function(m) { return m.month.substring(2).replace('-', '.'); });
+  var datasets = [];
+
+  if (chkRev) datasets.push({
+    label: '매출(만원)', data: filtered.map(function(m){ return m.revenue; }),
+    borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.1)',
+    borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#059669',
+    fill: true, tension: 0.3, yAxisID: 'y'
+  });
+  if (chkCnt) datasets.push({
+    label: '강의횟수(건)', data: filtered.map(function(m){ return m.count; }),
+    borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.08)',
+    borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#0066CC',
+    fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
+  });
+  if (chkHrs) datasets.push({
+    label: '강의시간(H)', data: filtered.map(function(m){ return m.hours; }),
+    borderColor: '#FF6B00', backgroundColor: 'rgba(255,107,0,0.08)',
+    borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#FF6B00',
+    fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
+  });
+  if (chkRate) datasets.push({
+    label: '시간당 강의료(만원)', data: filtered.map(function(m){ return m.avgRate; }),
+    borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
+    borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#7c3aed',
+    borderDash: [6, 3], fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
+  });
+
+  // 제목
+  var fromLabel = fromVal.replace('-', '년 ') + '월';
+  var toLabel = toVal.replace('-', '년 ') + '월';
+  var metricNames = [];
+  if (chkRev) metricNames.push('매출');
+  if (chkCnt) metricNames.push('강의횟수');
+  if (chkHrs) metricNames.push('강의시간');
+  if (chkRate) metricNames.push('시간당 강의료');
+  document.getElementById('customChartTitle').textContent = fromLabel + ' ~ ' + toLabel + ' | ' + metricNames.join(', ') + ' 추이';
+
+  // 차트 표시
+  document.getElementById('customChartWrap').style.display = 'block';
+  document.getElementById('customPlaceholder').style.display = 'none';
+
+  // 듀얼 Y축 여부
+  var needDualY = chkRev && (chkCnt || chkHrs || chkRate);
+  var scales = {
+    x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+    y: {
+      position: 'left',
+      title: { display: true, text: chkRev ? '매출(만원)' : metricNames[0], font: { size: 12 } },
+      grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { size: 11 } },
+      beginAtZero: true
+    }
+  };
+  if (needDualY) {
+    scales.y1 = {
+      position: 'right',
+      title: { display: true, text: metricNames.slice(1).join(' / '), font: { size: 12 } },
+      grid: { display: false }, ticks: { font: { size: 11 } },
+      beginAtZero: true
+    };
+  }
+
+  if (customChartInstance) customChartInstance.destroy();
+  customChartInstance = new Chart(document.getElementById('customChart'), {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: 'rgba(26,26,46,0.9)', padding: 12, cornerRadius: 8,
+          titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }
+        }
+      },
+      scales: scales
+    }
+  });
+}
+
+/* ═══════════════════════════════════════
    초기화
    ═══════════════════════════════════════ */
 function loadAndRender() {
@@ -1086,10 +1272,10 @@ function loadAndRender() {
         allData = FALLBACK;
         showToast('⚠️ 실시간 데이터 로드 실패 — 샘플 데이터 표시 중');
       })
-      .then(function() { renderForMonth(); renderCharts(); showLoading(false); });
+      .then(function() { renderForMonth(); renderCharts(); initCustomSelects(); showLoading(false); });
   } else {
     allData = FALLBACK;
-    renderForMonth(); renderCharts(); showLoading(false);
+    renderForMonth(); renderCharts(); initCustomSelects(); showLoading(false);
   }
 }
 
