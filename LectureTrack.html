@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LectureTrack - 강의 트래킹 대시보드</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --primary: #059669;
+  --primary-light: #10b981;
+  --primary-dark: #047857;
+  --bg-main: #F5F8FC;
+  --bg-white: #FFFFFF;
+  --accent-orange: #FF6B00;
+  --accent-green: #00B67A;
+  --accent-red: #dc2626;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-cyan: #0891b2;
+  --accent-blue: #0066CC;
+  --text-primary: #1A1A2E;
+  --text-secondary: #5A6070;
+  --text-light: #8A90A0;
+  --border: #E2E8F0;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dashboard-wrap {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* ─── Header ─── */
+.dash-header {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-radius: var(--radius-lg);
+  padding: 36px 40px;
+  margin-bottom: 28px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.dash-header::after {
+  content: '';
+  position: absolute;
+  top: -40%; right: -10%;
+  width: 300px; height: 300px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+.header-text { position: relative; z-index: 1; flex: 1; }
+.header-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 12px; font-weight: 500; margin-bottom: 12px;
+}
+.dash-header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.5px; }
+.dash-header .subtitle { font-size: 14px; opacity: 0.8; font-weight: 400; }
+.header-right {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.month-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff; width: 38px; height: 38px;
+  border-radius: 50%; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.month-btn:hover { background: rgba(255,255,255,0.35); transform: translateY(-1px); }
+.date-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.95);
+  min-width: 140px; text-align: center;
+}
+.refresh-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff; padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.2s;
+}
+.refresh-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+.refresh-btn:active { transform: translateY(0); }
+.refresh-btn.loading .icon { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── API Key Section ─── */
+.api-section {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 24px;
+  margin-bottom: 20px;
+}
+.api-toggle {
+  cursor: pointer; font-size: 13px; font-weight: 700;
+  color: var(--primary); user-select: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.api-input-area {
+  display: none; margin-top: 10px; gap: 8px; align-items: center;
+}
+.api-input-area input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px; font-family: inherit;
+  transition: border-color 0.2s;
+}
+.api-input-area input:focus { outline: none; border-color: var(--primary); }
+.api-input-area button {
+  padding: 10px 18px; color: #fff; border: none;
+  border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  font-family: inherit; transition: all 0.2s;
+}
+.api-input-area button:hover { transform: translateY(-1px); }
+
+/* ─── Section Card ─── */
+.section-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+.section-title {
+  font-size: 17px; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+}
+.section-title .icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.icon-blue { background: #E8F4FD; color: var(--accent-blue); }
+.icon-green { background: #E6F9F1; color: var(--accent-green); }
+.icon-orange { background: #FFF3E6; color: var(--accent-orange); }
+.icon-purple { background: #F3E8FF; color: var(--accent-purple); }
+
+/* ─── KPI Grid ─── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+.kpi-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: all 0.2s;
+  border-top: 3px solid transparent;
+}
+.kpi-card:nth-child(1) { border-top-color: var(--primary); }
+.kpi-card:nth-child(2) { border-top-color: var(--accent-blue); }
+.kpi-card:nth-child(3) { border-top-color: var(--accent-orange); }
+.kpi-card:nth-child(4) { border-top-color: var(--accent-purple); }
+.kpi-card:nth-child(5) { border-top-color: var(--accent-cyan); }
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.kpi-label { font-size: 12px; color: var(--text-light); margin-bottom: 8px; font-weight: 600; }
+.kpi-value { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.kpi-value.small { font-size: 16px; font-weight: 700; line-height: 1.5; margin-bottom: 4px; }
+.kpi-change {
+  font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;
+  gap: 3px; padding: 3px 8px; border-radius: 6px;
+}
+.kpi-change.up { color: var(--accent-green); background: #E6F9F1; }
+.kpi-change.down { color: var(--accent-red); background: #FEE2E2; }
+.kpi-change.info { color: var(--accent-blue); background: #E8F4FD; }
+
+/* ─── Charts ─── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.chart-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+.chart-card h3 {
+  font-size: 14px; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* ─── Donut Legend ─── */
+.donut-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* ─── Insights ─── */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+.insight-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+.insight-card:hover { box-shadow: var(--shadow-md); }
+.insight-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.insight-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.insight-icon.growth { background: #E6F9F1; }
+.insight-icon.warning { background: #FEE2E2; }
+.insight-icon.info { background: #E8F4FD; }
+.insight-icon.strategy { background: #F3E8FF; }
+.insight-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.insight-body { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+.insight-body strong { color: var(--text-primary); font-weight: 600; }
+.ai-btn {
+  margin-left: auto; padding: 10px 20px;
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.2s;
+}
+.ai-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.ai-btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+.ai-placeholder { color: var(--text-light); text-align: center; padding: 24px; font-size: 14px; }
+
+/* ─── Footer ─── */
+.dash-footer { text-align: center; padding: 24px; color: var(--text-light); font-size: 12px; }
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed; top: 20px; right: 20px;
+  background: var(--accent-green); color: #fff;
+  padding: 12px 24px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600;
+  z-index: 2000;
+  transform: translateY(-100px); opacity: 0; transition: all 0.4s;
+  box-shadow: var(--shadow-md);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ─── Loading ─── */
+.loading-overlay {
+  display: none; position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(26,26,46,0.75);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  justify-content: center; align-items: center; flex-direction: column; gap: 16px; color: #fff;
+}
+.loading-overlay.active { display: flex; }
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-header { flex-direction: column; text-align: center; }
+  .header-right { justify-content: center; }
+  .insights-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .dashboard-wrap { padding: 12px 12px 40px; }
+  .dash-header { padding: 24px 20px; }
+  .dash-header h1 { font-size: 20px; }
+  .section-card { padding: 20px 16px; }
+  .kpi-grid { grid-template-columns: 1fr; }
+}
+
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.section-card, .chart-card, .insight-card, .api-section { animation: fadeInUp 0.5s ease; }
+</style>
+
+<!-- 데이터 로딩 오버레이 -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></div>
+  <div style="font-size:16px;font-weight:600;">BD 시트 데이터 불러오는 중...</div>
+  <div style="font-size:13px;opacity:0.7;">Google Sheets 실시간 데이터 기준</div>
+</div>
+
+<div class="dashboard-wrap">
+
+  <!-- Header -->
+  <header class="dash-header">
+    <div class="header-text">
+      <div class="header-badge">📊 Lecture Tracking</div>
+      <h1>강의 트래킹 대시보드</h1>
+      <p class="subtitle">구글드라이브의 Edu-history 시트 기반 매출 실적 분석 및 인사이트</p>
+    </div>
+    <div class="header-right">
+      <button class="month-btn" id="prevMonth">◀</button>
+      <div class="date-badge" id="monthLabel">2026년 3월</div>
+      <button class="month-btn" id="nextMonth">▶</button>
+      <button class="refresh-btn" id="refreshBtn">
+        <span class="icon">&#x21bb;</span> 새로고침
+      </button>
+    </div>
+  </header>
+
+  <!-- API Key -->
+  <div class="api-section">
+    <div class="api-toggle" id="apiToggle">
+      🔑 Claude API <span id="apiArrow">▶</span>
+      <span id="apiStatus" style="color:#2e7d32;font-size:12px;"></span>
+    </div>
+    <div class="api-input-area" id="apiKeyArea">
+      <input type="password" id="apiKey" placeholder="sk-ant-...">
+      <button id="apiSaveBtn" style="background:#1a73e8;">저장</button>
+      <button id="apiDeleteBtn" style="background:#d32f2f;">삭제</button>
+    </div>
+  </div>
+
+  <!-- Apps Script URL -->
+  <div class="api-section">
+    <div class="api-toggle" id="urlToggle">
+      🔗 Apps Script URL <span id="urlArrow">▶</span>
+      <span id="urlStatus" style="color:#2e7d32;font-size:12px;"></span>
+    </div>
+    <div class="api-input-area" id="urlArea">
+      <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <button id="urlSaveBtn" style="background:#1a73e8;">저장</button>
+      <button id="urlDeleteBtn" style="background:#d32f2f;">삭제</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="section-card">
+    <div class="section-title"><span class="icon icon-green">📈</span> 핵심 지표 (KPI) — <span id="kpiMonth">2026년 3월</span></div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">💰 매출</div>
+        <div class="kpi-value" id="kpiRevenue">-</div>
+        <span class="kpi-change" id="kpiRevenueChg"></span>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">📚 강의횟수</div>
+        <div class="kpi-value" id="kpiCount">-</div>
+        <span class="kpi-change" id="kpiCountChg"></span>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">⏱️ 시간당 강의료</div>
+        <div class="kpi-value" id="kpiRate">-</div>
+        <span class="kpi-change" id="kpiRateChg"></span>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">🏢 주요 고객</div>
+        <div class="kpi-value small" id="kpiClients">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">🤝 에이전트</div>
+        <div class="kpi-value small" id="kpiAgent">-</div>
+        <span class="kpi-change info" id="kpiChannelRatio"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="section-card">
+    <div class="section-title">
+      <span class="icon icon-orange">💡</span> AI 강의 인사이트
+      <button class="ai-btn" id="aiBtn">🤖 AI 분석 생성</button>
+    </div>
+    <div class="insights-grid" id="insightsGrid">
+      <div class="ai-placeholder">AI 분석 버튼을 클릭하면 Claude AI가 강의 데이터를 분석하여 인사이트를 생성합니다.</div>
+    </div>
+  </div>
+
+  <!-- Charts: 추이 분석 -->
+  <div class="section-card" style="padding:0 0 8px;">
+    <div style="padding:24px 32px 0;">
+      <div class="section-title"><span class="icon icon-blue">📉</span> 추이 분석 (최근 12개월)</div>
+    </div>
+    <div class="two-col" style="padding:0 24px 16px;">
+      <div class="chart-card"><h3>월별 매출 추이 (만원)</h3><canvas id="revenueChart"></canvas></div>
+      <div class="chart-card"><h3>월별 강의횟수 추이</h3><canvas id="countChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts: 거래처 분석 -->
+  <div class="section-card" style="padding:0 0 8px;">
+    <div style="padding:24px 32px 0;">
+      <div class="section-title"><span class="icon icon-green">🏢</span> 거래처 분석</div>
+    </div>
+    <div class="two-col" style="padding:0 24px 16px;">
+      <div class="chart-card"><h3>고객사별 매출 Top 10 (만원)</h3><canvas id="clientChart"></canvas></div>
+      <div class="chart-card"><h3>에이전트별 매출 Top 10 (만원)</h3><canvas id="agentChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts: 분포 분석 -->
+  <div class="section-card" style="padding:0 0 8px;">
+    <div style="padding:24px 32px 0;">
+      <div class="section-title"><span class="icon icon-purple">📊</span> 분포 분석</div>
+    </div>
+    <div class="two-col" style="padding:0 24px 16px;">
+      <div class="chart-card">
+        <h3>교육주제별 분포</h3>
+        <canvas id="topicChart"></canvas>
+        <div class="donut-legend" id="topicLegend"></div>
+      </div>
+      <div class="chart-card">
+        <h3>지역별 분포</h3>
+        <canvas id="regionChart"></canvas>
+        <div class="donut-legend" id="regionLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts: 패턴 분석 -->
+  <div class="section-card" style="padding:0 0 8px;">
+    <div style="padding:24px 32px 0;">
+      <div class="section-title"><span class="icon icon-orange">📅</span> 패턴 분석</div>
+    </div>
+    <div class="two-col" style="padding:0 24px 16px;">
+      <div class="chart-card"><h3>요일별 강의 분포</h3><canvas id="dayChart"></canvas></div>
+      <div class="chart-card">
+        <h3>교육형태 분포</h3>
+        <canvas id="formatChart"></canvas>
+        <div class="donut-legend" id="formatLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-footer" id="footerInfo">LectureTrack v1.0 | 나눔경영컨설팅</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+'use strict';
+
+/* ═══════════════════════════════════════
+   설정
+   ═══════════════════════════════════════ */
+var APPS_SCRIPT_URL = localStorage.getItem('lt_script_url') || '';
+var LS_KEY = 'lt_api_key';
+var LS_URL_KEY = 'lt_script_url';
+
+var COLORS = ['#059669','#0066CC','#FF6B00','#7c3aed','#0891b2','#db2777','#dc2626','#f59e0b','#10b981','#6366f1'];
+
+/* ═══════════════════════════════════════
+   폴백 데이터 (APPS_SCRIPT_URL 미설정 시)
+   ═══════════════════════════════════════ */
+var FALLBACK = {
+  updated: '2026-03-08 10:00:00',
+  monthly: [
+    { month:'2025-04', revenue:850, count:8, hours:48, avgRate:15, topClients:[{name:'삼성SDS',revenue:350},{name:'LG CNS',revenue:200}], topAgents:[{name:'휴넷',revenue:300}] },
+    { month:'2025-05', revenue:1120, count:10, hours:60, avgRate:14, topClients:[{name:'현대자동차',revenue:400},{name:'SK하이닉스',revenue:300}], topAgents:[{name:'멀티캠퍼스',revenue:400}] },
+    { month:'2025-06', revenue:980, count:9, hours:54, avgRate:13, topClients:[{name:'삼성SDS',revenue:380}], topAgents:[{name:'휴넷',revenue:200}] },
+    { month:'2025-07', revenue:720, count:6, hours:36, avgRate:16, topClients:[{name:'포스코',revenue:350}], topAgents:[] },
+    { month:'2025-08', revenue:450, count:4, hours:24, avgRate:15, topClients:[{name:'KT',revenue:200}], topAgents:[{name:'엑스퍼트',revenue:150}] },
+    { month:'2025-09', revenue:1350, count:12, hours:72, avgRate:14, topClients:[{name:'현대자동차',revenue:500},{name:'LG전자',revenue:350}], topAgents:[{name:'휴넷',revenue:400}] },
+    { month:'2025-10', revenue:1580, count:14, hours:84, avgRate:15, topClients:[{name:'삼성전자',revenue:600},{name:'SK텔레콤',revenue:400}], topAgents:[{name:'멀티캠퍼스',revenue:500}] },
+    { month:'2025-11', revenue:1420, count:13, hours:78, avgRate:15, topClients:[{name:'LG CNS',revenue:450},{name:'삼성SDS',revenue:380}], topAgents:[{name:'휴넷',revenue:350}] },
+    { month:'2025-12', revenue:680, count:5, hours:30, avgRate:17, topClients:[{name:'현대모비스',revenue:380}], topAgents:[] },
+    { month:'2026-01', revenue:920, count:8, hours:48, avgRate:14, topClients:[{name:'삼성SDS',revenue:400},{name:'KT',revenue:250}], topAgents:[{name:'휴넷',revenue:300}] },
+    { month:'2026-02', revenue:1200, count:10, hours:60, avgRate:16, topClients:[{name:'현대자동차',revenue:500},{name:'LG전자',revenue:300}], topAgents:[{name:'엑스퍼트',revenue:350}] },
+    { month:'2026-03', revenue:1680, count:14, hours:84, avgRate:16, topClients:[{name:'삼성전자',revenue:600},{name:'SK하이닉스',revenue:450},{name:'포스코',revenue:300}], topAgents:[{name:'휴넷',revenue:500},{name:'멀티캠퍼스',revenue:380}] }
+  ],
+  topCustomers: [
+    {name:'삼성전자',revenue:3200},{name:'현대자동차',revenue:2800},{name:'삼성SDS',revenue:2400},{name:'LG CNS',revenue:1800},{name:'SK하이닉스',revenue:1500},
+    {name:'포스코',revenue:1200},{name:'KT',revenue:1000},{name:'LG전자',revenue:900},{name:'SK텔레콤',revenue:800},{name:'현대모비스',revenue:700}
+  ],
+  topAgents: [
+    {name:'휴넷',revenue:2800},{name:'멀티캠퍼스',revenue:1800},{name:'엑스퍼트',revenue:1200},{name:'아이니즈',revenue:600},{name:'컨설테크',revenue:400}
+  ],
+  channel: { directRev:8500, indirectRev:6800, directCnt:65, indirectCnt:48 },
+  topTopics: [
+    {name:'B2B 세일즈',count:28},{name:'AI 활용',count:24},{name:'디지털마케팅',count:18},{name:'리더십',count:12},{name:'데이터분석',count:10},
+    {name:'DX 전환',count:8},{name:'커뮤니케이션',count:6},{name:'비즈니스모델',count:4},{name:'기획/전략',count:3}
+  ],
+  regions: [{name:'서울',count:58},{name:'경기',count:22},{name:'부산',count:10},{name:'대전',count:8},{name:'온라인',count:12},{name:'대구',count:3}],
+  dayPattern: [{day:'월',count:18},{day:'화',count:24},{day:'수',count:22},{day:'목',count:20},{day:'금',count:16},{day:'토',count:8},{day:'일',count:2}],
+  formatDist: [{name:'대면교육',count:72},{name:'온라인교육',count:28},{name:'영상촬영',count:6},{name:'컨설팅&멘토링',count:7}],
+  industryDist: [{name:'일반제조',count:25},{name:'하이테크 제조',count:18},{name:'IT/통신',count:20},{name:'금융',count:15},{name:'유통',count:10},{name:'기관',count:8},{name:'대학교',count:6}]
+};
+
+/* ═══════════════════════════════════════
+   전역 상태
+   ═══════════════════════════════════════ */
+var allData = null;
+var currentMonth = '';
+var charts = {};
+
+/* ═══════════════════════════════════════
+   유틸
+   ═══════════════════════════════════════ */
+function fmt(n) { return n != null ? Number(n).toLocaleString() : '-'; }
+
+function showLoading(show) {
+  var el = document.getElementById('loadingOverlay');
+  if (show) el.classList.add('active'); else el.classList.remove('active');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
+/* ═══════════════════════════════════════
+   API 키 토글
+   ═══════════════════════════════════════ */
+function initAPIKey() {
+  var saved = localStorage.getItem(LS_KEY);
+  var area = document.getElementById('apiKeyArea');
+  var status = document.getElementById('apiStatus');
+  var arrow = document.getElementById('apiArrow');
+  var input = document.getElementById('apiKey');
+
+  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; }
+  else { area.style.display = 'flex'; arrow.textContent = '▼'; }
+
+  document.getElementById('apiToggle').addEventListener('click', function() {
+    if (area.style.display === 'none' || area.style.display === '') {
+      area.style.display = 'flex'; arrow.textContent = '▼';
+    } else { area.style.display = 'none'; arrow.textContent = '▶'; }
+  });
+
+  document.getElementById('apiSaveBtn').addEventListener('click', saveKey);
+  document.getElementById('apiDeleteBtn').addEventListener('click', function() {
+    localStorage.removeItem(LS_KEY); input.value = ''; status.textContent = '';
+    area.style.display = 'flex'; arrow.textContent = '▼'; showToast('🗑️ API 키가 삭제되었습니다');
+  });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveKey(); });
+
+  function saveKey() {
+    var k = input.value.trim();
+    if (!k) return;
+    localStorage.setItem(LS_KEY, k); status.textContent = '✅ 저장됨';
+    area.style.display = 'none'; arrow.textContent = '▶'; showToast('✅ API 키가 저장되었습니다');
+  }
+}
+
+/* ═══════════════════════════════════════
+   Apps Script URL 토글
+   ═══════════════════════════════════════ */
+function initScriptURL() {
+  var saved = localStorage.getItem(LS_URL_KEY);
+  var area = document.getElementById('urlArea');
+  var status = document.getElementById('urlStatus');
+  var arrow = document.getElementById('urlArrow');
+  var input = document.getElementById('scriptUrl');
+
+  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; }
+  else { area.style.display = 'flex'; arrow.textContent = '▼'; }
+
+  document.getElementById('urlToggle').addEventListener('click', function() {
+    if (area.style.display === 'none' || area.style.display === '') {
+      area.style.display = 'flex'; arrow.textContent = '▼';
+    } else { area.style.display = 'none'; arrow.textContent = '▶'; }
+  });
+
+  document.getElementById('urlSaveBtn').addEventListener('click', saveUrl);
+  document.getElementById('urlDeleteBtn').addEventListener('click', function() {
+    localStorage.removeItem(LS_URL_KEY); input.value = ''; status.textContent = '';
+    APPS_SCRIPT_URL = '';
+    area.style.display = 'flex'; arrow.textContent = '▼'; showToast('🗑️ URL이 삭제되었습니다');
+  });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveUrl(); });
+
+  function saveUrl() {
+    var u = input.value.trim();
+    if (!u) return;
+    localStorage.setItem(LS_URL_KEY, u); status.textContent = '✅ 저장됨';
+    APPS_SCRIPT_URL = u;
+    area.style.display = 'none'; arrow.textContent = '▶'; showToast('✅ URL이 저장되었습니다. 새로고침하면 실제 데이터를 불러옵니다.');
+  }
+}
+
+/* ═══════════════════════════════════════
+   JSONP 데이터 로드
+   ═══════════════════════════════════════ */
+function fetchData() {
+  return new Promise(function(resolve, reject) {
+    var cbName = '__ltcb' + Date.now();
+    var sc;
+    var timeout = setTimeout(function() {
+      delete window[cbName]; if (sc && sc.parentNode) sc.parentNode.removeChild(sc);
+      reject(new Error('데이터 로드 시간 초과 (20초)'));
+    }, 20000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout); delete window[cbName]; if (sc && sc.parentNode) sc.parentNode.removeChild(sc);
+      if (data && data.error) reject(new Error(data.error)); else resolve(data);
+    };
+    sc = document.createElement('script');
+    sc.onerror = function() { clearTimeout(timeout); delete window[cbName]; reject(new Error('스크립트 로드 실패')); };
+    sc.src = APPS_SCRIPT_URL + '?action=lecturetrack&callback=' + cbName + '&t=' + Date.now();
+    document.head.appendChild(sc);
+  });
+}
+
+/* ═══════════════════════════════════════
+   월 네비게이션
+   ═══════════════════════════════════════ */
+function changeMonth(delta) {
+  var p = currentMonth.split('-'); var y = +p[0], m = +p[1] + delta;
+  if (m > 12) { m = 1; y++; } if (m < 1) { m = 12; y--; }
+  currentMonth = y + '-' + String(m).padStart(2, '0');
+  renderForMonth();
+}
+
+function renderForMonth() {
+  var p = currentMonth.split('-');
+  var label = p[0] + '년 ' + parseInt(p[1]) + '월';
+  document.getElementById('monthLabel').textContent = label;
+  document.getElementById('kpiMonth').textContent = label;
+  renderKPI();
+}
+
+/* ═══════════════════════════════════════
+   KPI 렌더링
+   ═══════════════════════════════════════ */
+function findMonth(key) {
+  if (!allData) return null;
+  for (var i = 0; i < allData.monthly.length; i++) {
+    if (allData.monthly[i].month === key) return allData.monthly[i];
+  }
+  return null;
+}
+
+function prevMonthKey(key) {
+  var p = key.split('-'); var y = +p[0], m = +p[1] - 1;
+  if (m < 1) { m = 12; y--; }
+  return y + '-' + String(m).padStart(2, '0');
+}
+
+function renderChange(elId, prev, curr) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (prev === 0 && curr === 0) { el.textContent = '-'; el.className = 'kpi-change'; return; }
+  var pct = prev > 0 ? Math.round((curr - prev) / prev * 100) : (curr > 0 ? 100 : 0);
+  var up = pct >= 0;
+  el.className = 'kpi-change ' + (up ? 'up' : 'down');
+  el.innerHTML = (up ? '&#9650; +' : '&#9660; ') + pct + '%';
+}
+
+function renderKPI() {
+  var curr = findMonth(currentMonth);
+  var prev = findMonth(prevMonthKey(currentMonth));
+
+  var rev = curr ? curr.revenue : 0;
+  var cnt = curr ? curr.count : 0;
+  var rate = curr ? curr.avgRate : 0;
+
+  document.getElementById('kpiRevenue').textContent = fmt(rev) + '만원';
+  document.getElementById('kpiCount').textContent = cnt + '건';
+  document.getElementById('kpiRate').textContent = fmt(rate) + '만원';
+
+  renderChange('kpiRevenueChg', prev ? prev.revenue : 0, rev);
+  renderChange('kpiCountChg', prev ? prev.count : 0, cnt);
+  renderChange('kpiRateChg', prev ? prev.avgRate : 0, rate);
+
+  // 해당 월 Top3 고객
+  var clients = (curr && curr.topClients) ? curr.topClients : [];
+  document.getElementById('kpiClients').textContent = clients.length > 0
+    ? clients.map(function(c){ return c.name; }).join(', ') : '-';
+
+  // 해당 월 에이전트
+  var agents = (curr && curr.topAgents) ? curr.topAgents : [];
+  document.getElementById('kpiAgent').textContent = agents.length > 0
+    ? agents.map(function(a){ return a.name; }).join(', ') : '직접 영업';
+
+  // 채널 비율 (전체 기간)
+  var ch = allData ? allData.channel : null;
+  if (ch) {
+    var total = ch.directCnt + ch.indirectCnt;
+    if (total > 0) {
+      var dp = Math.round(ch.directCnt / total * 100);
+      document.getElementById('kpiChannelRatio').textContent = '전체 직접 ' + dp + '% / 간접 ' + (100 - dp) + '%';
+      document.getElementById('kpiChannelRatio').className = 'kpi-change info';
+    }
+  }
+}
+
+/* ═══════════════════════════════════════
+   차트 초기화
+   ═══════════════════════════════════════ */
+function initCharts() {
+  var gridColor = '#f1f5f9';
+  var tickCb = function(v) { return v.toLocaleString(); };
+
+  charts.revenue = new Chart(document.getElementById('revenueChart'), {
+    type:'bar', data:{ labels:[], datasets:[{ label:'매출(만원)', data:[], backgroundColor:'rgba(5,150,105,0.75)', borderRadius:4, barThickness:20 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
+  });
+
+  charts.count = new Chart(document.getElementById('countChart'), {
+    type:'line', data:{ labels:[], datasets:[{ label:'강의횟수', data:[], borderColor:'#0066CC', backgroundColor:'rgba(0,102,204,0.08)',
+      fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:'#0066CC' }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{stepSize:1} } } }
+  });
+
+  charts.client = new Chart(document.getElementById('clientChart'), {
+    type:'bar', data:{ labels:[], datasets:[{ label:'매출(만원)', data:[], backgroundColor:COLORS, borderRadius:4, barThickness:18 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
+  });
+
+  charts.agent = new Chart(document.getElementById('agentChart'), {
+    type:'bar', data:{ labels:[], datasets:[{ label:'매출(만원)', data:[], backgroundColor:'#FF6B00', borderRadius:4, barThickness:18 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
+  });
+
+  charts.topic = new Chart(document.getElementById('topicChart'), {
+    type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:COLORS, borderWidth:0 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+  });
+
+  charts.region = new Chart(document.getElementById('regionChart'), {
+    type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:COLORS, borderWidth:0 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+  });
+
+  charts.day = new Chart(document.getElementById('dayChart'), {
+    type:'bar', data:{ labels:['월','화','수','목','금','토','일'], datasets:[{ label:'강의 건수', data:[0,0,0,0,0,0,0],
+      backgroundColor:['#0066CC','#0077DD','#00A5E5','#10b981','#FF6B00','#7c3aed','#db2777'], borderRadius:4 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{stepSize:1} } } }
+  });
+
+  charts.format = new Chart(document.getElementById('formatChart'), {
+    type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:['#0066CC','#10b981','#FF6B00','#7c3aed'], borderWidth:0 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+  });
+}
+
+/* ═══════════════════════════════════════
+   차트 데이터 업데이트
+   ═══════════════════════════════════════ */
+function renderCharts() {
+  if (!allData) return;
+  var d = allData;
+  var last12 = d.monthly.slice(-12);
+  var labels12 = last12.map(function(m){ return m.month.substring(2); });
+
+  charts.revenue.data.labels = labels12;
+  charts.revenue.data.datasets[0].data = last12.map(function(m){ return m.revenue; });
+  charts.revenue.update();
+
+  charts.count.data.labels = labels12;
+  charts.count.data.datasets[0].data = last12.map(function(m){ return m.count; });
+  charts.count.update();
+
+  charts.client.data.labels = d.topCustomers.map(function(c){ return c.name; });
+  charts.client.data.datasets[0].data = d.topCustomers.map(function(c){ return c.revenue; });
+  charts.client.update();
+
+  charts.agent.data.labels = d.topAgents.map(function(c){ return c.name; });
+  charts.agent.data.datasets[0].data = d.topAgents.map(function(c){ return c.revenue; });
+  charts.agent.update();
+
+  charts.topic.data.labels = d.topTopics.map(function(t){ return t.name; });
+  charts.topic.data.datasets[0].data = d.topTopics.map(function(t){ return t.count; });
+  charts.topic.update();
+  renderLegend('topicLegend', d.topTopics, COLORS);
+
+  charts.region.data.labels = d.regions.map(function(r){ return r.name; });
+  charts.region.data.datasets[0].data = d.regions.map(function(r){ return r.count; });
+  charts.region.update();
+  renderLegend('regionLegend', d.regions, COLORS);
+
+  charts.day.data.datasets[0].data = d.dayPattern.map(function(dp){ return dp.count; });
+  charts.day.update();
+
+  charts.format.data.labels = d.formatDist.map(function(f){ return f.name; });
+  charts.format.data.datasets[0].data = d.formatDist.map(function(f){ return f.count; });
+  charts.format.update();
+  renderLegend('formatLegend', d.formatDist, ['#0066CC','#10b981','#FF6B00','#7c3aed']);
+}
+
+function renderLegend(elId, items, colors) {
+  var el = document.getElementById(elId); if (!el) return;
+  var total = 0; items.forEach(function(it){ total += (it.count || 0); });
+  el.innerHTML = items.map(function(it, i) {
+    var pct = total > 0 ? Math.round((it.count || 0) / total * 100) : 0;
+    return '<div class="legend-item"><span class="legend-dot" style="background:' + colors[i % colors.length] + '"></span>' +
+      (it.name || it.day || '') + ' ' + pct + '%</div>';
+  }).join('');
+}
+
+/* ═══════════════════════════════════════
+   AI 인사이트
+   ═══════════════════════════════════════ */
+function buildDataSummary() {
+  if (!allData) return '데이터 없음';
+  var curr = findMonth(currentMonth);
+  var prev = findMonth(prevMonthKey(currentMonth));
+
+  var s = '== 선택 월: ' + currentMonth + ' ==\n';
+  if (curr) {
+    s += '매출: ' + curr.revenue + '만원, 강의횟수: ' + curr.count + '건, ';
+    s += '평균 시간당 강의료: ' + curr.avgRate + '만원/H, 총 강의시간: ' + curr.hours + 'H\n';
+    if (curr.topClients && curr.topClients.length) s += '해당월 주요 고객: ' + curr.topClients.map(function(c){ return c.name + '(' + c.revenue + '만원)'; }).join(', ') + '\n';
+    if (curr.topAgents && curr.topAgents.length) s += '해당월 주요 에이전트: ' + curr.topAgents.map(function(a){ return a.name + '(' + a.revenue + '만원)'; }).join(', ') + '\n';
+  } else { s += '해당 월 데이터 없음\n'; }
+  if (prev) s += '전월(' + prevMonthKey(currentMonth) + '): 매출 ' + prev.revenue + '만원, ' + prev.count + '건\n';
+
+  s += '\n== 최근 12개월 추이 ==\n';
+  allData.monthly.slice(-12).forEach(function(m) {
+    s += m.month + ': 매출 ' + m.revenue + '만원, ' + m.count + '건, 평균 ' + m.avgRate + '만원/H\n';
+  });
+
+  s += '\n== Top 고객사 (전체 기간, 만원) ==\n';
+  allData.topCustomers.slice(0, 5).forEach(function(c, i) { s += (i+1) + '. ' + c.name + ': ' + c.revenue + '\n'; });
+
+  s += '\n== Top 에이전트 (전체 기간, 만원) ==\n';
+  allData.topAgents.slice(0, 5).forEach(function(a, i) { s += (i+1) + '. ' + a.name + ': ' + a.revenue + '\n'; });
+
+  var ch = allData.channel;
+  s += '\n== 채널 비율 ==\n';
+  s += '직접: ' + ch.directCnt + '건/' + ch.directRev + '만원, 간접: ' + ch.indirectCnt + '건/' + ch.indirectRev + '만원\n';
+
+  s += '\n== 교육주제 Top 5 ==\n';
+  allData.topTopics.slice(0,5).forEach(function(t){ s += t.name + ': ' + t.count + '건\n'; });
+
+  s += '\n== 지역 분포 ==\n';
+  allData.regions.slice(0,5).forEach(function(r){ s += r.name + ': ' + r.count + '건\n'; });
+
+  s += '\n== 요일 패턴 ==\n';
+  allData.dayPattern.forEach(function(d){ s += d.day + ': ' + d.count + '건\n'; });
+
+  s += '\n== 교육형태 ==\n';
+  allData.formatDist.forEach(function(f){ s += f.name + ': ' + f.count + '건\n'; });
+
+  return s;
+}
+
+function generateAI() {
+  var apiKey = localStorage.getItem(LS_KEY);
+  if (!apiKey) { alert('Claude API 키를 먼저 설정해주세요.'); return; }
+  if (!allData) { alert('데이터를 먼저 로드해주세요.'); return; }
+
+  var btn = document.getElementById('aiBtn');
+  btn.disabled = true; btn.textContent = '🤖 분석 중...';
+
+  var systemPrompt = '당신은 기업교육 비즈니스 전문 컨설턴트입니다.\n' +
+    '교육 강사의 강의 실적 데이터를 분석하여 비즈니스 인사이트를 도출합니다.\n' +
+    '반드시 한국어로 답변하고, 숫자와 데이터를 근거로 실행 가능한 인사이트를 제시합니다.\n\n' +
+    '응답은 반드시 JSON 배열 형식으로만 작성하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.\n' +
+    '각 항목: {"icon":"이모지","type":"growth 또는 warning 또는 info 또는 strategy","title":"짧은 제목","body":"상세 설명 (2~3문장)"}\n' +
+    'type 의미: growth=긍정적 성장/좋은 지표, warning=주의/하락/위험, info=참고할 정보, strategy=전략 제안/실행 방안\n' +
+    '4~5개의 인사이트를 생성하세요.';
+
+  var userPrompt = '다음은 강의 실적 데이터 요약입니다. 분석하여 비즈니스 인사이트를 생성해주세요.\n\n' + buildDataSummary();
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20250501',
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+  })
+  .then(function(res) {
+    if (!res.ok) {
+      return res.json().catch(function(){ return {}; }).then(function(err) {
+        if (res.status === 401) throw new Error('API 키가 유효하지 않습니다.');
+        if (res.status === 429) throw new Error('API 요청 한도 초과. 잠시 후 다시 시도해주세요.');
+        throw new Error((err.error && err.error.message) || 'API 오류 (' + res.status + ')');
+      });
+    }
+    return res.json();
+  })
+  .then(function(data) {
+    var text = data.content[0].text;
+    var jsonStr = text;
+    var codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeMatch) jsonStr = codeMatch[1];
+    var arrMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (arrMatch) jsonStr = arrMatch[0];
+    var insights = JSON.parse(jsonStr.trim());
+    renderInsights(insights);
+    showToast('✅ AI 인사이트가 생성되었습니다');
+  })
+  .catch(function(err) {
+    alert('AI 분석 오류: ' + err.message);
+  })
+  .finally(function() {
+    btn.disabled = false; btn.textContent = '🤖 AI 분석 생성';
+  });
+}
+
+function renderInsights(list) {
+  var el = document.getElementById('insightsGrid');
+  el.innerHTML = '';
+  list.forEach(function(ins) {
+    el.innerHTML += '<div class="insight-card">' +
+      '<div class="insight-header">' +
+        '<div class="insight-icon ' + (ins.type || 'info') + '">' + (ins.icon || '💡') + '</div>' +
+        '<div class="insight-title">' + (ins.title || '') + '</div>' +
+      '</div>' +
+      '<div class="insight-body">' + (ins.body || '') + '</div>' +
+    '</div>';
+  });
+}
+
+/* ═══════════════════════════════════════
+   초기화
+   ═══════════════════════════════════════ */
+function loadAndRender() {
+  showLoading(true);
+  if (APPS_SCRIPT_URL) {
+    fetchData()
+      .then(function(data) { allData = data; })
+      .catch(function(e) {
+        console.warn('데이터 로드 실패, 폴백 사용:', e.message);
+        allData = FALLBACK;
+        showToast('⚠️ 실시간 데이터 로드 실패 — 샘플 데이터 표시 중');
+      })
+      .then(function() { renderForMonth(); renderCharts(); showLoading(false); });
+  } else {
+    allData = FALLBACK;
+    renderForMonth(); renderCharts(); showLoading(false);
+  }
+}
+
+// 시작
+var now = new Date();
+currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+initAPIKey();
+initScriptURL();
+initCharts();
+
+document.getElementById('prevMonth').addEventListener('click', function() { changeMonth(-1); });
+document.getElementById('nextMonth').addEventListener('click', function() { changeMonth(1); });
+document.getElementById('refreshBtn').addEventListener('click', function() {
+  var btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+  loadAndRender();
+  setTimeout(function(){ btn.classList.remove('loading'); }, 1500);
+});
+document.getElementById('aiBtn').addEventListener('click', generateAI);
+
+loadAndRender();
+
+})();
+</script>
+</body>
+</html>
