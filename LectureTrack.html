@@ -222,7 +222,10 @@ body {
   margin-bottom: 16px;
 }
 
-/* ─── Donut Legend ─── */
+/* ─── Donut Chart ─── */
+.donut-card { display: flex; flex-direction: column; align-items: center; }
+.donut-card h3 { align-self: flex-start; }
+.donut-canvas-wrap { max-width: 260px; max-height: 260px; width: 100%; margin: 0 auto; }
 .donut-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
 .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
@@ -513,14 +516,14 @@ body {
       <div class="section-title"><span class="icon icon-purple">📊</span> 분포 분석</div>
     </div>
     <div class="two-col" style="padding:0 24px 16px;">
-      <div class="chart-card">
+      <div class="chart-card donut-card">
         <h3>교육주제별 분포</h3>
-        <canvas id="topicChart"></canvas>
+        <div class="donut-canvas-wrap"><canvas id="topicChart"></canvas></div>
         <div class="donut-legend" id="topicLegend"></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card donut-card">
         <h3>지역별 분포</h3>
-        <canvas id="regionChart"></canvas>
+        <div class="donut-canvas-wrap"><canvas id="regionChart"></canvas></div>
         <div class="donut-legend" id="regionLegend"></div>
       </div>
     </div>
@@ -533,9 +536,9 @@ body {
     </div>
     <div class="two-col" style="padding:0 24px 16px;">
       <div class="chart-card"><h3>요일별 강의 분포</h3><canvas id="dayChart"></canvas></div>
-      <div class="chart-card">
+      <div class="chart-card donut-card">
         <h3>교육형태 분포</h3>
-        <canvas id="formatChart"></canvas>
+        <div class="donut-canvas-wrap"><canvas id="formatChart"></canvas></div>
         <div class="donut-legend" id="formatLegend"></div>
       </div>
     </div>
@@ -569,6 +572,15 @@ body {
       </div>
     </div>
     <div style="padding:0 24px 20px;">
+      <div class="ai-progress-wrap" id="customProgressWrap">
+        <div class="ai-progress-label">
+          <span class="status" id="customProgressStatus">📊 차트 준비 중...</span>
+          <span class="percent" id="customProgressPercent">0%</span>
+        </div>
+        <div class="ai-progress-bar">
+          <div class="ai-progress-fill animating" id="customProgressFill" style="background:linear-gradient(90deg,#0891b2,#0066CC,#059669);"></div>
+        </div>
+      </div>
       <div class="chart-card" id="customChartWrap" style="display:none;">
         <h3 id="customChartTitle">사용자 정의 추이 분석</h3>
         <canvas id="customChart"></canvas>
@@ -1162,6 +1174,14 @@ function initCustomSelects() {
   toSel.value = months[months.length - 1];
 }
 
+var customProgressTimer = null;
+
+function setCustomProgress(pct, statusText) {
+  document.getElementById('customProgressFill').style.width = pct + '%';
+  document.getElementById('customProgressPercent').textContent = Math.round(pct) + '%';
+  if (statusText) document.getElementById('customProgressStatus').textContent = statusText;
+}
+
 function renderCustomChart() {
   if (!allData || !allData.monthly) { alert('데이터를 먼저 로드해주세요.'); return; }
 
@@ -1177,6 +1197,36 @@ function renderCustomChart() {
 
   var filtered = allData.monthly.filter(function(m) { return m.month >= fromVal && m.month <= toVal; });
   if (filtered.length === 0) { alert('선택한 기간에 데이터가 없습니다.'); return; }
+
+  // 버튼 비활성화 + 프로그레스 시작
+  var btn = document.getElementById('customChartBtn');
+  btn.disabled = true; btn.textContent = '📈 생성 중...';
+  document.getElementById('customChartWrap').style.display = 'none';
+  document.getElementById('customPlaceholder').style.display = 'none';
+  var progressWrap = document.getElementById('customProgressWrap');
+  progressWrap.classList.add('active');
+  setCustomProgress(0, '📊 데이터 필터링 중...');
+
+  var pct = 0;
+  var steps = [
+    { at: 10, text: '📊 데이터 필터링 중...' },
+    { at: 30, text: '📐 지표 계산 중...' },
+    { at: 55, text: '🎨 차트 구성 중...' },
+    { at: 80, text: '📈 그래프 렌더링 중...' }
+  ];
+
+  customProgressTimer = setInterval(function() {
+    if (pct < 85) {
+      pct += (85 - pct) * 0.08 + 0.5;
+      if (pct > 85) pct = 85;
+      for (var i = steps.length - 1; i >= 0; i--) {
+        if (pct >= steps[i].at) { setCustomProgress(pct, steps[i].text); break; }
+      }
+    }
+  }, 60);
+
+  // 약간의 딜레이 후 차트 렌더링 (프로그레스 바가 보이도록)
+  setTimeout(function() {
 
   var labels = filtered.map(function(m) { return m.month.substring(2).replace('-', '.'); });
   var datasets = [];
@@ -1216,9 +1266,17 @@ function renderCustomChart() {
   if (chkRate) metricNames.push('시간당 강의료');
   document.getElementById('customChartTitle').textContent = fromLabel + ' ~ ' + toLabel + ' | ' + metricNames.join(', ') + ' 추이';
 
-  // 차트 표시
-  document.getElementById('customChartWrap').style.display = 'block';
-  document.getElementById('customPlaceholder').style.display = 'none';
+  // 프로그레스 완료 → 차트 표시
+  clearInterval(customProgressTimer);
+  setCustomProgress(100, '✅ 차트 생성 완료!');
+  document.getElementById('customProgressFill').classList.remove('animating');
+
+  setTimeout(function() {
+    progressWrap.classList.remove('active');
+    document.getElementById('customProgressFill').classList.add('animating');
+    document.getElementById('customChartWrap').style.display = 'block';
+    btn.disabled = false; btn.textContent = '📈 차트 생성';
+  }, 600);
 
   // 듀얼 Y축 여부
   var needDualY = chkRev && (chkCnt || chkHrs || chkRate);
@@ -1257,6 +1315,8 @@ function renderCustomChart() {
       scales: scales
     }
   });
+
+  }, 1500); // setTimeout 끝 (프로그레스 바 표시 후 차트 렌더링)
 }
 
 /* ═══════════════════════════════════════
