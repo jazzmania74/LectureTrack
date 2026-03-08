@@ -497,9 +497,13 @@ body {
     <div style="padding:24px 32px 0;">
       <div class="section-title"><span class="icon icon-blue">📉</span> 추이 분석 (최근 12개월)</div>
     </div>
-    <div class="two-col" style="padding:0 24px 16px;">
+    <div class="two-col" style="padding:0 24px 16px; margin-bottom:0;">
       <div class="chart-card"><h3>월별 매출 추이 (만원)</h3><canvas id="revenueChart"></canvas></div>
       <div class="chart-card"><h3>월별 강의횟수 추이</h3><canvas id="countChart"></canvas></div>
+    </div>
+    <div class="two-col" style="padding:0 24px 16px;">
+      <div class="chart-card"><h3>월별 강의시간 추이 (H)</h3><canvas id="hoursChart"></canvas></div>
+      <div class="chart-card"><h3>월별 시간당 강의료 추이 (만원/H)</h3><canvas id="rateChart"></canvas></div>
     </div>
   </div>
 
@@ -886,6 +890,17 @@ function initCharts() {
     options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{stepSize:1} } } }
   });
 
+  charts.hours = new Chart(document.getElementById('hoursChart'), {
+    type:'bar', data:{ labels:[], datasets:[{ label:'강의시간(H)', data:[], backgroundColor:'rgba(124,58,237,0.75)', borderRadius:4, barThickness:20 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
+  });
+
+  charts.rate = new Chart(document.getElementById('rateChart'), {
+    type:'line', data:{ labels:[], datasets:[{ label:'시간당 강의료(만원/H)', data:[], borderColor:'#db2777', backgroundColor:'rgba(219,39,119,0.08)',
+      fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:'#db2777' }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
+  });
+
   charts.client = new Chart(document.getElementById('clientChart'), {
     type:'bar', data:{ labels:[], datasets:[{ label:'매출(만원)', data:[], backgroundColor:COLORS, borderRadius:4, barThickness:18 }] },
     options:{ indexAxis:'y', responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ beginAtZero:true, grid:{color:gridColor}, ticks:{callback:tickCb} } } }
@@ -934,6 +949,14 @@ function renderCharts() {
   charts.count.data.labels = labels12;
   charts.count.data.datasets[0].data = last12.map(function(m){ return m.count; });
   charts.count.update();
+
+  charts.hours.data.labels = labels12;
+  charts.hours.data.datasets[0].data = last12.map(function(m){ return m.hours || 0; });
+  charts.hours.update();
+
+  charts.rate.data.labels = labels12;
+  charts.rate.data.datasets[0].data = last12.map(function(m){ return m.avgRate || 0; });
+  charts.rate.update();
 
   charts.client.data.labels = d.topCustomers.map(function(c){ return c.name; });
   charts.client.data.datasets[0].data = d.topCustomers.map(function(c){ return c.revenue; });
