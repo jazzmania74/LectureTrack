@@ -571,7 +571,20 @@ body {
             <label class="check-label"><input type="checkbox" id="chkRate"> 💵 시간당 강의료</label>
           </div>
         </div>
-        <div class="control-group" style="min-width:120px;flex:0;">
+        <div class="control-group" style="min-width:140px;flex:0;">
+          <label class="control-label">📋 분류 기준</label>
+          <div class="control-row">
+            <select id="customView" class="custom-select" style="min-width:130px;">
+              <option value="timeseries">📅 시계열</option>
+              <option value="industry">🏭 산업별</option>
+              <option value="channel">🤝 직간접별</option>
+              <option value="region">📍 지역별</option>
+              <option value="format">🎓 교육형태별</option>
+              <option value="lang">🌐 언어별</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group" id="unitGroup" style="min-width:110px;flex:0;">
           <label class="control-label">🔄 단위</label>
           <div class="control-row">
             <select id="customUnit" class="custom-select" style="min-width:100px;">
@@ -653,7 +666,8 @@ var FALLBACK = {
   regions: [{name:'서울',count:58},{name:'경기',count:22},{name:'부산',count:10},{name:'대전',count:8},{name:'온라인',count:12},{name:'대구',count:3}],
   dayPattern: [{day:'월',count:18},{day:'화',count:24},{day:'수',count:22},{day:'목',count:20},{day:'금',count:16},{day:'토',count:8},{day:'일',count:2}],
   formatDist: [{name:'대면교육',count:72},{name:'온라인교육',count:28},{name:'영상촬영',count:6},{name:'컨설팅&멘토링',count:7}],
-  industryDist: [{name:'일반제조',count:25},{name:'하이테크 제조',count:18},{name:'IT/통신',count:20},{name:'금융',count:15},{name:'유통',count:10},{name:'기관',count:8},{name:'대학교',count:6}]
+  industryDist: [{name:'일반제조',count:25},{name:'하이테크 제조',count:18},{name:'IT/통신',count:20},{name:'금융',count:15},{name:'유통',count:10},{name:'기관',count:8},{name:'대학교',count:6}],
+  langDist: [{name:'한국어',count:95},{name:'영어',count:15},{name:'한영 혼합',count:3}]
 };
 
 /* ═══════════════════════════════════════
@@ -1186,6 +1200,77 @@ function initCustomSelects() {
   toSel.value = months[months.length - 1];
 }
 
+function onViewChange() {
+  var view = document.getElementById('customView').value;
+  var isTime = (view === 'timeseries');
+  document.getElementById('unitGroup').style.display = isTime ? '' : 'none';
+  document.getElementById('customFrom').closest('.control-group').style.opacity = isTime ? '1' : '0.4';
+  document.getElementById('customFrom').disabled = !isTime;
+  document.getElementById('customTo').disabled = !isTime;
+}
+
+function getCategoryData(view) {
+  var viewMap = {
+    industry: { data: allData.industryDist || [], title: '🏭 산업별 분포' },
+    channel: { data: [
+      { name: '직접', count: allData.channel.directCnt, revenue: allData.channel.directRev },
+      { name: '간접', count: allData.channel.indirectCnt, revenue: allData.channel.indirectRev }
+    ], title: '🤝 직간접 채널별 분포' },
+    region: { data: allData.regions || [], title: '📍 지역별 분포' },
+    format: { data: allData.formatDist || [], title: '🎓 교육형태별 분포' },
+    lang: { data: allData.langDist || [], title: '🌐 언어별 분포' }
+  };
+  return viewMap[view] || null;
+}
+
+function buildCategoryChart(catInfo, chkRev, chkCnt) {
+  var items = catInfo.data;
+  var labels = items.map(function(it) { return it.name; });
+  var datasets = [];
+
+  if (chkCnt) datasets.push({
+    label: '건수', data: items.map(function(it) { return it.count || 0; }),
+    backgroundColor: COLORS.slice(0, items.length).map(function(c) { return c + 'CC'; }),
+    borderColor: COLORS.slice(0, items.length),
+    borderWidth: 1.5, borderRadius: 6
+  });
+  if (chkRev && items[0] && items[0].revenue !== undefined) datasets.push({
+    label: '매출(만원)', data: items.map(function(it) { return it.revenue || 0; }),
+    backgroundColor: items.map(function(_, i) { return COLORS[(i + 3) % COLORS.length] + 'CC'; }),
+    borderColor: items.map(function(_, i) { return COLORS[(i + 3) % COLORS.length]; }),
+    borderWidth: 1.5, borderRadius: 6
+  });
+  if (datasets.length === 0) datasets.push({
+    label: '건수', data: items.map(function(it) { return it.count || 0; }),
+    backgroundColor: COLORS.slice(0, items.length).map(function(c) { return c + 'CC'; }),
+    borderColor: COLORS.slice(0, items.length),
+    borderWidth: 1.5, borderRadius: 6
+  });
+
+  document.getElementById('customChartTitle').textContent = catInfo.title;
+
+  if (customChartInstance) customChartInstance.destroy();
+  customChartInstance = new Chart(document.getElementById('customChart'), {
+    type: 'bar',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      indexAxis: items.length > 6 ? 'y' : 'x',
+      plugins: {
+        legend: { display: datasets.length > 1, position: 'top', labels: { usePointStyle: true, font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: 'rgba(26,26,46,0.9)', padding: 12, cornerRadius: 8,
+          titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { size: 12 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
 var customProgressTimer = null;
 
 function setCustomProgress(pct, statusText) {
@@ -1301,20 +1386,28 @@ function buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, to
 }
 
 function renderCustomChart() {
-  if (!allData || !allData.monthly) { alert('데이터를 먼저 로드해주세요.'); return; }
+  if (!allData) { alert('데이터를 먼저 로드해주세요.'); return; }
 
-  var fromVal = document.getElementById('customFrom').value;
-  var toVal = document.getElementById('customTo').value;
-  if (fromVal > toVal) { alert('시작월이 종료월보다 클 수 없습니다.'); return; }
-
+  var view = document.getElementById('customView').value;
   var chkRev = document.getElementById('chkRevenue').checked;
   var chkCnt = document.getElementById('chkCount').checked;
   var chkHrs = document.getElementById('chkHours').checked;
   var chkRate = document.getElementById('chkRate').checked;
-  if (!chkRev && !chkCnt && !chkHrs && !chkRate) { alert('최소 1개 지표를 선택해주세요.'); return; }
 
-  var filtered = allData.monthly.filter(function(m) { return m.month >= fromVal && m.month <= toVal; });
-  if (filtered.length === 0) { alert('선택한 기간에 데이터가 없습니다.'); return; }
+  var filtered = null;
+  var fromVal = '', toVal = '';
+
+  if (view === 'timeseries') {
+    if (!chkRev && !chkCnt && !chkHrs && !chkRate) { alert('최소 1개 지표를 선택해주세요.'); return; }
+    fromVal = document.getElementById('customFrom').value;
+    toVal = document.getElementById('customTo').value;
+    if (fromVal > toVal) { alert('시작월이 종료월보다 클 수 없습니다.'); return; }
+    filtered = allData.monthly.filter(function(m) { return m.month >= fromVal && m.month <= toVal; });
+    if (filtered.length === 0) { alert('선택한 기간에 데이터가 없습니다.'); return; }
+  } else {
+    var catInfo = getCategoryData(view);
+    if (!catInfo || !catInfo.data.length) { alert('해당 분류 데이터가 없습니다.'); return; }
+  }
 
   // 버튼 비활성화 + 프로그레스 시작
   var btn = document.getElementById('customChartBtn');
@@ -1354,9 +1447,12 @@ function renderCustomChart() {
       document.getElementById('customChartWrap').style.display = 'block';
       btn.disabled = false; btn.textContent = '📈 차트 생성';
 
-      // 차트 wrap이 visible된 후 차트 생성
       setTimeout(function() {
-        buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, toVal);
+        if (view === 'timeseries') {
+          buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, toVal);
+        } else {
+          buildCategoryChart(getCategoryData(view), chkRev, chkCnt);
+        }
       }, 50);
     }, 600);
   }, 1500);
@@ -1400,6 +1496,7 @@ document.getElementById('refreshBtn').addEventListener('click', function() {
 });
 document.getElementById('aiBtn').addEventListener('click', generateAI);
 document.getElementById('customChartBtn').addEventListener('click', renderCustomChart);
+document.getElementById('customView').addEventListener('change', onViewChange);
 
 loadAndRender();
 
