@@ -264,6 +264,16 @@ body {
 .ai-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
 .ai-btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
 .ai-placeholder { color: var(--text-light); text-align: center; padding: 24px; font-size: 14px; }
+.ai-headline {
+  display: none;
+  font-size: 18px; font-weight: 800; color: var(--text-primary);
+  line-height: 1.5; margin-bottom: 16px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-left: 4px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.ai-headline.active { display: block; }
 
 /* ─── AI Progress Bar ─── */
 .ai-progress-wrap {
@@ -430,6 +440,7 @@ body {
       <span class="icon icon-orange">💡</span> AI 강의 인사이트
       <button class="ai-btn" id="aiBtn">🤖 AI 분석 생성</button>
     </div>
+    <div class="ai-headline" id="aiHeadline"></div>
     <div class="ai-progress-wrap" id="aiProgressWrap">
       <div class="ai-progress-label">
         <span class="status" id="aiProgressStatus">🤖 데이터 분석 준비 중...</span>
@@ -976,10 +987,12 @@ function generateAI() {
     '교육 강사의 강의 실적 데이터를 분석하여 비즈니스 인사이트를 도출합니다.\n' +
     '반드시 한국어로 답변하고, 숫자와 데이터를 근거로 실행 가능한 인사이트를 제시합니다.\n' +
     '중요: 오늘(' + getCurrentMonthKey() + ')까지의 데이터만 확정 실적입니다. 이후 월 데이터가 있더라도 그것은 아직 미확정 예정이므로 절대 분석하거나 언급하지 마세요.\n\n' +
-    '응답은 반드시 JSON 배열 형식으로만 작성하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.\n' +
-    '각 항목: {"icon":"이모지","type":"growth 또는 warning 또는 info 또는 strategy","title":"짧은 제목","body":"상세 설명 (2~3문장)"}\n' +
+    '응답은 반드시 JSON 객체로만 작성하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.\n' +
+    '형식: {"headline":"전체 데이터를 한줄로 요약하는 핵심 인사이트 문장 (30~50자)","items":[...]}\n' +
+    'headline은 이번 달 실적의 핵심을 짧고 임팩트 있게 요약합니다. 예: "3월 매출 1,680만원, 전월 대비 41% 성장 — 효성인포메이션시스템이 핵심 동력"\n' +
+    'items 배열의 각 항목: {"icon":"이모지","type":"growth 또는 warning 또는 info 또는 strategy","title":"짧은 제목","body":"상세 설명 (2~3문장)"}\n' +
     'type 의미: growth=긍정적 성장/좋은 지표, warning=주의/하락/위험, info=참고할 정보, strategy=전략 제안/실행 방안\n' +
-    '4~5개의 인사이트를 생성하세요.';
+    'items는 4~5개의 인사이트를 생성하세요.';
 
   var userPrompt = '다음은 강의 실적 데이터 요약입니다. 분석하여 비즈니스 인사이트를 생성해주세요.\n\n' + buildDataSummary();
 
@@ -1013,10 +1026,17 @@ function generateAI() {
     var jsonStr = text;
     var codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeMatch) jsonStr = codeMatch[1];
-    var arrMatch = jsonStr.match(/\[[\s\S]*\]/);
-    if (arrMatch) jsonStr = arrMatch[0];
-    var insights = JSON.parse(jsonStr.trim());
+    var parsed = JSON.parse(jsonStr.trim());
+    var headline = '';
+    var insights = [];
+    if (Array.isArray(parsed)) {
+      insights = parsed;
+    } else {
+      headline = parsed.headline || '';
+      insights = parsed.items || [];
+    }
     stopAIProgress(true);
+    renderHeadline(headline);
     renderInsights(insights);
     showToast('✅ AI 인사이트가 생성되었습니다');
   })
@@ -1027,6 +1047,16 @@ function generateAI() {
   .finally(function() {
     btn.disabled = false; btn.textContent = '🤖 AI 분석 생성';
   });
+}
+
+function renderHeadline(text) {
+  var el = document.getElementById('aiHeadline');
+  if (text) {
+    el.textContent = '📌 ' + text;
+    el.classList.add('active');
+  } else {
+    el.classList.remove('active');
+  }
 }
 
 function renderInsights(list) {
