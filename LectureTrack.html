@@ -859,12 +859,19 @@ function renderLegend(elId, items, colors) {
 /* ═══════════════════════════════════════
    AI 인사이트
    ═══════════════════════════════════════ */
+function getCurrentMonthKey() {
+  var now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+
 function buildDataSummary() {
   if (!allData) return '데이터 없음';
+  var cutoff = getCurrentMonthKey();
   var curr = findMonth(currentMonth);
   var prev = findMonth(prevMonthKey(currentMonth));
 
-  var s = '== 선택 월: ' + currentMonth + ' ==\n';
+  var s = '※ 오늘 기준(' + cutoff + ')까지의 확정 데이터만 분석합니다. 이후 월은 미확정 예정이므로 제외합니다.\n\n';
+  s += '== 선택 월: ' + currentMonth + ' ==\n';
   if (curr) {
     s += '매출: ' + curr.revenue + '만원, 강의횟수: ' + curr.count + '건, ';
     s += '평균 시간당 강의료: ' + curr.avgRate + '만원/H, 총 강의시간: ' + curr.hours + 'H\n';
@@ -873,15 +880,15 @@ function buildDataSummary() {
   } else { s += '해당 월 데이터 없음\n'; }
   if (prev) s += '전월(' + prevMonthKey(currentMonth) + '): 매출 ' + prev.revenue + '만원, ' + prev.count + '건\n';
 
-  s += '\n== 최근 12개월 추이 ==\n';
-  allData.monthly.slice(-12).forEach(function(m) {
+  s += '\n== 최근 12개월 추이 (~ ' + cutoff + '까지) ==\n';
+  allData.monthly.filter(function(m) { return m.month <= cutoff; }).slice(-12).forEach(function(m) {
     s += m.month + ': 매출 ' + m.revenue + '만원, ' + m.count + '건, 평균 ' + m.avgRate + '만원/H\n';
   });
 
-  s += '\n== Top 고객사 (전체 기간, 만원) ==\n';
+  s += '\n== Top 고객사 (~ ' + cutoff + '까지, 만원) ==\n';
   allData.topCustomers.slice(0, 5).forEach(function(c, i) { s += (i+1) + '. ' + c.name + ': ' + c.revenue + '\n'; });
 
-  s += '\n== Top 에이전트 (전체 기간, 만원) ==\n';
+  s += '\n== Top 에이전트 (~ ' + cutoff + '까지, 만원) ==\n';
   allData.topAgents.slice(0, 5).forEach(function(a, i) { s += (i+1) + '. ' + a.name + ': ' + a.revenue + '\n'; });
 
   var ch = allData.channel;
@@ -967,7 +974,8 @@ function generateAI() {
 
   var systemPrompt = '당신은 기업교육 비즈니스 전문 컨설턴트입니다.\n' +
     '교육 강사의 강의 실적 데이터를 분석하여 비즈니스 인사이트를 도출합니다.\n' +
-    '반드시 한국어로 답변하고, 숫자와 데이터를 근거로 실행 가능한 인사이트를 제시합니다.\n\n' +
+    '반드시 한국어로 답변하고, 숫자와 데이터를 근거로 실행 가능한 인사이트를 제시합니다.\n' +
+    '중요: 오늘(' + getCurrentMonthKey() + ')까지의 데이터만 확정 실적입니다. 이후 월 데이터가 있더라도 그것은 아직 미확정 예정이므로 절대 분석하거나 언급하지 마세요.\n\n' +
     '응답은 반드시 JSON 배열 형식으로만 작성하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.\n' +
     '각 항목: {"icon":"이모지","type":"growth 또는 warning 또는 info 또는 strategy","title":"짧은 제목","body":"상세 설명 (2~3문장)"}\n' +
     'type 의미: growth=긍정적 성장/좋은 지표, warning=주의/하락/위험, info=참고할 정보, strategy=전략 제안/실행 방안\n' +
