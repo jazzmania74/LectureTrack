@@ -264,13 +264,13 @@ body {
 .ai-controls {
   margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
 }
-.ai-range-input {
-  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+.ai-range-sel {
+  padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
   font-size: 13px; font-family: inherit; color: var(--text-primary);
-  background: var(--bg-white); width: 130px; text-align: center;
+  background: var(--bg-white); cursor: pointer; appearance: auto;
 }
-.ai-range-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(5,150,105,0.15); }
-.ai-range-sep { font-size: 13px; color: var(--text-light); font-weight: 500; }
+.ai-range-sel:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(5,150,105,0.15); }
+.ai-range-sep { font-size: 13px; color: var(--text-light); font-weight: 600; margin: 0 2px; }
 .ai-btn {
   padding: 10px 20px;
   background: var(--primary); color: #fff; border: none;
@@ -486,9 +486,11 @@ body {
     <div class="section-title">
       <span class="icon icon-orange">💡</span> AI 강의 인사이트
       <div class="ai-controls">
-        <input type="month" class="ai-range-input" id="aiRangeFrom">
+        <select class="ai-range-sel" id="aiFromYear"></select>
+        <select class="ai-range-sel" id="aiFromMonth"></select>
         <span class="ai-range-sep">~</span>
-        <input type="month" class="ai-range-input" id="aiRangeTo">
+        <select class="ai-range-sel" id="aiToYear"></select>
+        <select class="ai-range-sel" id="aiToMonth"></select>
         <button class="ai-btn" id="aiBtn">🤖 AI 분석 생성</button>
       </div>
     </div>
@@ -811,8 +813,7 @@ function changeMonth(delta) {
   var p = currentMonth.split('-'); var y = +p[0], m = +p[1] + delta;
   if (m > 12) { m = 1; y++; } if (m < 1) { m = 12; y--; }
   currentMonth = y + '-' + String(m).padStart(2, '0');
-  document.getElementById('aiRangeFrom').value = currentMonth;
-  document.getElementById('aiRangeTo').value = currentMonth;
+  setAIRange(currentMonth);
   renderForMonth();
 }
 
@@ -1039,11 +1040,41 @@ function getCurrentMonthKey() {
   return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 }
 
+function initAIRangeSelects() {
+  var fy = document.getElementById('aiFromYear');
+  var fm = document.getElementById('aiFromMonth');
+  var ty = document.getElementById('aiToYear');
+  var tm = document.getElementById('aiToMonth');
+  var thisYear = new Date().getFullYear();
+  [fy, ty].forEach(function(sel) {
+    sel.innerHTML = '';
+    for (var y = thisYear - 5; y <= thisYear + 1; y++) {
+      sel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
+    }
+  });
+  [fm, tm].forEach(function(sel) {
+    sel.innerHTML = '';
+    for (var m = 1; m <= 12; m++) {
+      sel.innerHTML += '<option value="' + String(m).padStart(2,'0') + '">' + m + '월</option>';
+    }
+  });
+}
+
+function setAIRange(monthKey) {
+  var p = monthKey.split('-');
+  document.getElementById('aiFromYear').value = p[0];
+  document.getElementById('aiFromMonth').value = p[1];
+  document.getElementById('aiToYear').value = p[0];
+  document.getElementById('aiToMonth').value = p[1];
+}
+
 function getAIRange() {
-  var from = document.getElementById('aiRangeFrom').value;
-  var to = document.getElementById('aiRangeTo').value;
-  if (!from) from = currentMonth;
-  if (!to) to = currentMonth;
+  var fromY = document.getElementById('aiFromYear').value;
+  var fromM = document.getElementById('aiFromMonth').value;
+  var toY = document.getElementById('aiToYear').value;
+  var toM = document.getElementById('aiToMonth').value;
+  var from = fromY + '-' + fromM;
+  var to = toY + '-' + toM;
   if (from > to) { var tmp = from; from = to; to = tmp; }
   return { from: from, to: to };
 }
@@ -1580,9 +1611,9 @@ function loadAndRender() {
 var now = new Date();
 currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 
-// AI 분석 기간 기본값 (현재 월 1개월)
-document.getElementById('aiRangeFrom').value = currentMonth;
-document.getElementById('aiRangeTo').value = currentMonth;
+// AI 분석 기간 드롭다운 초기화
+initAIRangeSelects();
+setAIRange(currentMonth);
 
 initAPIKey();
 initScriptURL();
