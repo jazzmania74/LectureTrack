@@ -442,7 +442,7 @@ body {
 
   <!-- KPI -->
   <div class="section-card">
-    <div class="section-title"><span class="icon icon-green">📈</span> 핵심 지표 (KPI) — <span id="kpiMonth">2026년 3월</span></div>
+    <div class="section-title"><span class="icon icon-green">📈</span> 핵심 지표 (KPI) — <span id="kpiMonth">2026년 3월</span> <span id="kpiYtd" style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-left:12px;"></span></div>
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">💰 매출</div>
@@ -859,6 +859,25 @@ function renderKPI() {
   var agents = (curr && curr.topAgents) ? curr.topAgents : [];
   document.getElementById('kpiAgent').textContent = agents.length > 0
     ? agents.map(function(a){ return a.name; }).join(', ') : '직접 영업';
+
+  // YTD (해당 연도 1월~현재월 누적)
+  var ytdEl = document.getElementById('kpiYtd');
+  if (ytdEl && allData) {
+    var year = currentMonth.split('-')[0];
+    var month = parseInt(currentMonth.split('-')[1]);
+    var ytdRev = 0, ytdHours = 0, ytdWeightedRate = 0;
+    for (var mi = 1; mi <= month; mi++) {
+      var mk = year + '-' + String(mi).padStart(2, '0');
+      var md = findMonth(mk);
+      if (md) {
+        ytdRev += md.revenue;
+        ytdHours += md.hours || 0;
+        if (md.avgRate > 0 && md.hours > 0) ytdWeightedRate += md.avgRate * md.hours;
+      }
+    }
+    var ytdAvgRate = ytdHours > 0 ? Math.round(ytdWeightedRate / ytdHours) : 0;
+    ytdEl.textContent = '│ ' + year + '년 누적 매출: ' + fmt(ytdRev) + '만원 · 평균 시간당 강의료: ' + fmt(ytdAvgRate) + '만원/H';
+  }
 
   // 채널 비율 (전체 기간)
   var ch = allData ? allData.channel : null;
