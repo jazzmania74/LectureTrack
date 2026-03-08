@@ -571,6 +571,15 @@ body {
             <label class="check-label"><input type="checkbox" id="chkRate"> 💵 시간당 강의료</label>
           </div>
         </div>
+        <div class="control-group" style="min-width:120px;flex:0;">
+          <label class="control-label">🔄 단위</label>
+          <div class="control-row">
+            <select id="customUnit" class="custom-select" style="min-width:100px;">
+              <option value="monthly">월별</option>
+              <option value="yearly">연별</option>
+            </select>
+          </div>
+        </div>
         <button class="ai-btn" id="customChartBtn" style="align-self:flex-end;">📈 차트 생성</button>
       </div>
     </div>
@@ -1185,30 +1194,59 @@ function setCustomProgress(pct, statusText) {
   if (statusText) document.getElementById('customProgressStatus').textContent = statusText;
 }
 
+function aggregateYearly(filtered) {
+  var yearMap = {};
+  filtered.forEach(function(m) {
+    var year = m.month.substring(0, 4);
+    if (!yearMap[year]) yearMap[year] = { year: year, revenue: 0, count: 0, hours: 0, totalRate: 0, rateCount: 0 };
+    yearMap[year].revenue += m.revenue;
+    yearMap[year].count += m.count;
+    yearMap[year].hours += m.hours;
+    yearMap[year].totalRate += m.avgRate;
+    yearMap[year].rateCount += 1;
+  });
+  var years = Object.keys(yearMap).sort();
+  return years.map(function(y) {
+    var d = yearMap[y];
+    return { label: y + '년', revenue: Math.round(d.revenue), count: d.count, hours: d.hours, avgRate: Math.round(d.totalRate / d.rateCount) };
+  });
+}
+
 function buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, toVal) {
-  var labels = filtered.map(function(m) { return m.month.substring(2).replace('-', '.'); });
+  var unit = document.getElementById('customUnit').value;
+  var chartData, labels;
+
+  if (unit === 'yearly') {
+    var yearly = aggregateYearly(filtered);
+    labels = yearly.map(function(y) { return y.label; });
+    chartData = yearly;
+  } else {
+    labels = filtered.map(function(m) { return m.month.substring(2).replace('-', '.'); });
+    chartData = filtered;
+  }
+
   var datasets = [];
 
   if (chkRev) datasets.push({
-    label: '매출(만원)', data: filtered.map(function(m){ return m.revenue; }),
+    label: '매출(만원)', data: chartData.map(function(m){ return m.revenue; }),
     borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.1)',
     borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#059669',
     fill: true, tension: 0.3, yAxisID: 'y'
   });
   if (chkCnt) datasets.push({
-    label: '강의횟수(건)', data: filtered.map(function(m){ return m.count; }),
+    label: '강의횟수(건)', data: chartData.map(function(m){ return m.count; }),
     borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.08)',
     borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#0066CC',
     fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
   });
   if (chkHrs) datasets.push({
-    label: '강의시간(H)', data: filtered.map(function(m){ return m.hours; }),
+    label: '강의시간(H)', data: chartData.map(function(m){ return m.hours; }),
     borderColor: '#FF6B00', backgroundColor: 'rgba(255,107,0,0.08)',
     borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#FF6B00',
     fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
   });
   if (chkRate) datasets.push({
-    label: '시간당 강의료(만원)', data: filtered.map(function(m){ return m.avgRate; }),
+    label: '시간당 강의료(만원)', data: chartData.map(function(m){ return m.avgRate; }),
     borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
     borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#7c3aed',
     borderDash: [6, 3], fill: false, tension: 0.3, yAxisID: chkRev ? 'y1' : 'y'
@@ -1216,12 +1254,13 @@ function buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, to
 
   var fromLabel = fromVal.replace('-', '년 ') + '월';
   var toLabel = toVal.replace('-', '년 ') + '월';
+  var unitLabel = unit === 'yearly' ? '연별' : '월별';
   var metricNames = [];
   if (chkRev) metricNames.push('매출');
   if (chkCnt) metricNames.push('강의횟수');
   if (chkHrs) metricNames.push('강의시간');
   if (chkRate) metricNames.push('시간당 강의료');
-  document.getElementById('customChartTitle').textContent = fromLabel + ' ~ ' + toLabel + ' | ' + metricNames.join(', ') + ' 추이';
+  document.getElementById('customChartTitle').textContent = fromLabel + ' ~ ' + toLabel + ' | ' + metricNames.join(', ') + ' ' + unitLabel + ' 추이';
 
   var needDualY = chkRev && (chkCnt || chkHrs || chkRate);
   var scales = {
