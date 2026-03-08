@@ -874,12 +874,12 @@ function initCharts() {
 
   charts.topic = new Chart(document.getElementById('topicChart'), {
     type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:COLORS, borderWidth:0 }] },
-    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'40%' }
   });
 
   charts.region = new Chart(document.getElementById('regionChart'), {
     type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:COLORS, borderWidth:0 }] },
-    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'40%' }
   });
 
   charts.day = new Chart(document.getElementById('dayChart'), {
@@ -890,7 +890,7 @@ function initCharts() {
 
   charts.format = new Chart(document.getElementById('formatChart'), {
     type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:['#0066CC','#10b981','#FF6B00','#7c3aed'], borderWidth:0 }] },
-    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'60%' }
+    options:{ responsive:true, plugins:{ legend:{display:false} }, cutout:'40%' }
   });
 }
 
