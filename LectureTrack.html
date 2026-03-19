@@ -579,9 +579,11 @@ body {
         <div class="control-group">
           <label class="control-label">📅 기간 설정</label>
           <div class="control-row">
-            <select id="customFrom" class="custom-select"></select>
+            <select id="customFromYear" class="custom-select" style="min-width:90px;"></select>
+            <select id="customFromMonth" class="custom-select" style="min-width:70px;"></select>
             <span class="control-sep">~</span>
-            <select id="customTo" class="custom-select"></select>
+            <select id="customToYear" class="custom-select" style="min-width:90px;"></select>
+            <select id="customToMonth" class="custom-select" style="min-width:70px;"></select>
           </div>
         </div>
         <div class="control-group">
@@ -1313,29 +1315,57 @@ var customChartInstance = null;
 
 function initCustomSelects() {
   if (!allData || !allData.monthly || !allData.monthly.length) return;
-  var fromSel = document.getElementById('customFrom');
-  var toSel = document.getElementById('customTo');
-  fromSel.innerHTML = '';
-  toSel.innerHTML = '';
   var months = allData.monthly.map(function(m) { return m.month; });
-  months.forEach(function(m) {
-    var label = m.replace('-', '년 ') + '월';
-    fromSel.innerHTML += '<option value="' + m + '">' + label + '</option>';
-    toSel.innerHTML += '<option value="' + m + '">' + label + '</option>';
+  // 연도/월 목록 추출
+  var yearSet = {};
+  months.forEach(function(m) { yearSet[m.split('-')[0]] = true; });
+  var years = Object.keys(yearSet).sort();
+
+  var fromYSel = document.getElementById('customFromYear');
+  var fromMSel = document.getElementById('customFromMonth');
+  var toYSel = document.getElementById('customToYear');
+  var toMSel = document.getElementById('customToMonth');
+
+  fromYSel.innerHTML = '';
+  toYSel.innerHTML = '';
+  years.forEach(function(y) {
+    fromYSel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
+    toYSel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
   });
+
+  fromMSel.innerHTML = '';
+  toMSel.innerHTML = '';
+  for (var i = 1; i <= 12; i++) {
+    var mv = ('0' + i).slice(-2);
+    fromMSel.innerHTML += '<option value="' + mv + '">' + i + '월</option>';
+    toMSel.innerHTML += '<option value="' + mv + '">' + i + '월</option>';
+  }
+
   // 기본: 최근 6개월
   var startIdx = Math.max(0, months.length - 6);
-  fromSel.value = months[startIdx];
-  toSel.value = months[months.length - 1];
+  var startParts = months[startIdx].split('-');
+  var endParts = months[months.length - 1].split('-');
+  fromYSel.value = startParts[0];
+  fromMSel.value = startParts[1];
+  toYSel.value = endParts[0];
+  toMSel.value = endParts[1];
+}
+
+function getCustomFromTo() {
+  var fromVal = document.getElementById('customFromYear').value + '-' + document.getElementById('customFromMonth').value;
+  var toVal = document.getElementById('customToYear').value + '-' + document.getElementById('customToMonth').value;
+  return { from: fromVal, to: toVal };
 }
 
 function onViewChange() {
   var view = document.getElementById('customView').value;
   var isTime = (view === 'timeseries');
   document.getElementById('unitGroup').style.display = isTime ? '' : 'none';
-  document.getElementById('customFrom').closest('.control-group').style.opacity = isTime ? '1' : '0.4';
-  document.getElementById('customFrom').disabled = !isTime;
-  document.getElementById('customTo').disabled = !isTime;
+  document.getElementById('customFromYear').closest('.control-group').style.opacity = isTime ? '1' : '0.4';
+  document.getElementById('customFromYear').disabled = !isTime;
+  document.getElementById('customFromMonth').disabled = !isTime;
+  document.getElementById('customToYear').disabled = !isTime;
+  document.getElementById('customToMonth').disabled = !isTime;
 }
 
 function getCategoryData(view) {
@@ -1528,8 +1558,9 @@ function renderCustomChart() {
 
   if (view === 'timeseries') {
     if (!chkRev && !chkCnt && !chkHrs && !chkRate) { alert('최소 1개 지표를 선택해주세요.'); return; }
-    fromVal = document.getElementById('customFrom').value;
-    toVal = document.getElementById('customTo').value;
+    var range = getCustomFromTo();
+    fromVal = range.from;
+    toVal = range.to;
     if (fromVal > toVal) { alert('시작월이 종료월보다 클 수 없습니다.'); return; }
     filtered = allData.monthly.filter(function(m) { return m.month >= fromVal && m.month <= toVal; });
     if (filtered.length === 0) { alert('선택한 기간에 데이터가 없습니다.'); return; }
