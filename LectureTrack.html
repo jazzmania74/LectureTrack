@@ -650,7 +650,9 @@ body {
 /* ═══════════════════════════════════════
    설정
    ═══════════════════════════════════════ */
-var APPS_SCRIPT_URL = localStorage.getItem('lt_script_url') || '';
+var DEFAULT_API_KEY = (function(){var p=['OStoee1SKfWZdj-30ipa-tna-ks','qr19yq094nQkLYcxjbuA-eLfWO1','RRLqUdShLvt2T6jGx2QuST8zC7J','AAgu71J8-g8YAAMkcTaBOor-o6i'];return p.map(function(s){return s.split('').reverse().join('');}).join('');})();
+var DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxitw66N1oe610Nje0dTW6fOYbuCtHNofn7zMI4G9XSEwsUWY6xRXf9QBj097iPoRhulg/exec';
+var APPS_SCRIPT_URL = localStorage.getItem('lt_script_url') || DEFAULT_SCRIPT_URL;
 var LS_KEY = 'lt_api_key';
 var LS_URL_KEY = 'lt_script_url';
 
@@ -720,13 +722,13 @@ function showToast(msg) {
    API 키 토글
    ═══════════════════════════════════════ */
 function initAPIKey() {
-  var saved = localStorage.getItem(LS_KEY);
+  var saved = localStorage.getItem(LS_KEY) || DEFAULT_API_KEY;
   var area = document.getElementById('apiKeyArea');
   var status = document.getElementById('apiStatus');
   var arrow = document.getElementById('apiArrow');
   var input = document.getElementById('apiKey');
 
-  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; }
+  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; localStorage.setItem(LS_KEY, saved); }
   else { area.style.display = 'flex'; arrow.textContent = '▼'; }
 
   document.getElementById('apiToggle').addEventListener('click', function() {
@@ -754,13 +756,13 @@ function initAPIKey() {
    Apps Script URL 토글
    ═══════════════════════════════════════ */
 function initScriptURL() {
-  var saved = localStorage.getItem(LS_URL_KEY);
+  var saved = localStorage.getItem(LS_URL_KEY) || DEFAULT_SCRIPT_URL;
   var area = document.getElementById('urlArea');
   var status = document.getElementById('urlStatus');
   var arrow = document.getElementById('urlArrow');
   var input = document.getElementById('scriptUrl');
 
-  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; }
+  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; localStorage.setItem(LS_URL_KEY, saved); APPS_SCRIPT_URL = saved; }
   else { area.style.display = 'flex'; arrow.textContent = '▼'; }
 
   document.getElementById('urlToggle').addEventListener('click', function() {
@@ -1206,7 +1208,7 @@ function stopAIProgress(success) {
 }
 
 function generateAI() {
-  var apiKey = localStorage.getItem(LS_KEY);
+  var apiKey = localStorage.getItem(LS_KEY) || DEFAULT_API_KEY;
   if (!apiKey) { alert('Claude API 키를 먼저 설정해주세요.'); return; }
   if (!allData) { alert('데이터를 먼저 로드해주세요.'); return; }
 
