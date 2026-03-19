@@ -119,37 +119,6 @@ body {
 .refresh-btn.loading .icon { animation: spin 1s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── API Key Section ─── */
-.api-section {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 14px 24px;
-  margin-bottom: 20px;
-}
-.api-toggle {
-  cursor: pointer; font-size: 13px; font-weight: 700;
-  color: var(--primary); user-select: none;
-  display: inline-flex; align-items: center; gap: 4px;
-}
-.api-input-area {
-  display: none; margin-top: 10px; gap: 8px; align-items: center;
-}
-.api-input-area input {
-  flex: 1; padding: 10px 14px; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); font-size: 13px; font-family: inherit;
-  transition: border-color 0.2s;
-}
-.api-input-area input:focus { outline: none; border-color: var(--primary); }
-.api-input-area button {
-  padding: 10px 18px; color: #fff; border: none;
-  border-radius: var(--radius-sm); cursor: pointer;
-  font-size: 13px; font-weight: 600; white-space: nowrap;
-  font-family: inherit; transition: all 0.2s;
-}
-.api-input-area button:hover { transform: translateY(-1px); }
-
 /* ─── Section Card ─── */
 .section-card {
   background: var(--bg-white);
@@ -395,7 +364,7 @@ body {
 }
 
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.section-card, .chart-card, .insight-card, .api-section { animation: fadeInUp 0.5s ease; }
+.section-card, .chart-card, .insight-card { animation: fadeInUp 0.5s ease; }
 </style>
 
 <!-- 데이터 로딩 오버레이 -->
@@ -423,32 +392,6 @@ body {
       </button>
     </div>
   </header>
-
-  <!-- API Key -->
-  <div class="api-section">
-    <div class="api-toggle" id="apiToggle">
-      🔑 Claude API <span id="apiArrow">▶</span>
-      <span id="apiStatus" style="color:#2e7d32;font-size:12px;"></span>
-    </div>
-    <div class="api-input-area" id="apiKeyArea">
-      <input type="password" id="apiKey" placeholder="sk-ant-...">
-      <button id="apiSaveBtn" style="background:#1a73e8;">저장</button>
-      <button id="apiDeleteBtn" style="background:#d32f2f;">삭제</button>
-    </div>
-  </div>
-
-  <!-- Apps Script URL -->
-  <div class="api-section">
-    <div class="api-toggle" id="urlToggle">
-      🔗 Apps Script URL <span id="urlArrow">▶</span>
-      <span id="urlStatus" style="color:#2e7d32;font-size:12px;"></span>
-    </div>
-    <div class="api-input-area" id="urlArea">
-      <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
-      <button id="urlSaveBtn" style="background:#1a73e8;">저장</button>
-      <button id="urlDeleteBtn" style="background:#d32f2f;">삭제</button>
-    </div>
-  </div>
 
   <!-- KPI -->
   <div class="section-card">
@@ -718,75 +661,7 @@ function showToast(msg) {
   setTimeout(function(){ t.classList.remove('show'); }, 3000);
 }
 
-/* ═══════════════════════════════════════
-   API 키 토글
-   ═══════════════════════════════════════ */
-function initAPIKey() {
-  var saved = localStorage.getItem(LS_KEY) || DEFAULT_API_KEY;
-  var area = document.getElementById('apiKeyArea');
-  var status = document.getElementById('apiStatus');
-  var arrow = document.getElementById('apiArrow');
-  var input = document.getElementById('apiKey');
-
-  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; localStorage.setItem(LS_KEY, saved); }
-  else { area.style.display = 'flex'; arrow.textContent = '▼'; }
-
-  document.getElementById('apiToggle').addEventListener('click', function() {
-    if (area.style.display === 'none' || area.style.display === '') {
-      area.style.display = 'flex'; arrow.textContent = '▼';
-    } else { area.style.display = 'none'; arrow.textContent = '▶'; }
-  });
-
-  document.getElementById('apiSaveBtn').addEventListener('click', saveKey);
-  document.getElementById('apiDeleteBtn').addEventListener('click', function() {
-    localStorage.removeItem(LS_KEY); input.value = ''; status.textContent = '';
-    area.style.display = 'flex'; arrow.textContent = '▼'; showToast('🗑️ API 키가 삭제되었습니다');
-  });
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveKey(); });
-
-  function saveKey() {
-    var k = input.value.trim();
-    if (!k) return;
-    localStorage.setItem(LS_KEY, k); status.textContent = '✅ 저장됨';
-    area.style.display = 'none'; arrow.textContent = '▶'; showToast('✅ API 키가 저장되었습니다');
-  }
-}
-
-/* ═══════════════════════════════════════
-   Apps Script URL 토글
-   ═══════════════════════════════════════ */
-function initScriptURL() {
-  var saved = localStorage.getItem(LS_URL_KEY) || DEFAULT_SCRIPT_URL;
-  var area = document.getElementById('urlArea');
-  var status = document.getElementById('urlStatus');
-  var arrow = document.getElementById('urlArrow');
-  var input = document.getElementById('scriptUrl');
-
-  if (saved) { input.value = saved; status.textContent = '✅ 저장됨'; area.style.display = 'none'; localStorage.setItem(LS_URL_KEY, saved); APPS_SCRIPT_URL = saved; }
-  else { area.style.display = 'flex'; arrow.textContent = '▼'; }
-
-  document.getElementById('urlToggle').addEventListener('click', function() {
-    if (area.style.display === 'none' || area.style.display === '') {
-      area.style.display = 'flex'; arrow.textContent = '▼';
-    } else { area.style.display = 'none'; arrow.textContent = '▶'; }
-  });
-
-  document.getElementById('urlSaveBtn').addEventListener('click', saveUrl);
-  document.getElementById('urlDeleteBtn').addEventListener('click', function() {
-    localStorage.removeItem(LS_URL_KEY); input.value = ''; status.textContent = '';
-    APPS_SCRIPT_URL = '';
-    area.style.display = 'flex'; arrow.textContent = '▼'; showToast('🗑️ URL이 삭제되었습니다');
-  });
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveUrl(); });
-
-  function saveUrl() {
-    var u = input.value.trim();
-    if (!u) return;
-    localStorage.setItem(LS_URL_KEY, u); status.textContent = '✅ 저장됨';
-    APPS_SCRIPT_URL = u;
-    area.style.display = 'none'; arrow.textContent = '▶'; showToast('✅ URL이 저장되었습니다. 새로고침하면 실제 데이터를 불러옵니다.');
-  }
-}
+/* API 키와 Apps Script URL은 코드에 내장됨 (DEFAULT_API_KEY, DEFAULT_SCRIPT_URL) */
 
 /* ═══════════════════════════════════════
    JSONP 데이터 로드
@@ -1648,8 +1523,6 @@ currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, 
 initAIRangeSelects();
 setAIRange(currentMonth);
 
-initAPIKey();
-initScriptURL();
 initCharts();
 
 document.getElementById('prevMonth').addEventListener('click', function() { changeMonth(-1); });
