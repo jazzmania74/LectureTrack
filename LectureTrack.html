@@ -1386,7 +1386,9 @@ function buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, to
   var avgParts = [];
   if (chkRev) {
     var revData = chartData.map(function(m){ return m.revenue; });
-    var revAvg = Math.round(revData.reduce(function(a,b){ return a+b; }, 0) / revData.length);
+    var revSum = revData.reduce(function(a,b){ return a+b; }, 0);
+    var revAvg = Math.round(revSum / revData.length);
+    avgParts.push('총 매출 ' + Math.round(revSum).toLocaleString() + '만원');
     avgParts.push('평균 매출 ' + revAvg.toLocaleString() + '만원');
   }
   if (chkCnt) {
