@@ -574,7 +574,7 @@ body {
         </div>
       </div>
       <div class="chart-card" id="customChartWrap" style="display:none;">
-        <h3 id="customChartTitle">사용자 정의 추이 분석</h3>
+        <h3 id="customChartTitle" style="display:inline;">사용자 정의 추이 분석</h3><span id="customChartAvg" style="margin-left:12px;font-size:14px;color:#0066CC;font-weight:600;"></span>
         <canvas id="customChart"></canvas>
       </div>
       <div class="ai-placeholder" id="customPlaceholder">기간과 지표를 선택한 후 [📈 차트 생성] 버튼을 클릭하세요.</div>
@@ -1282,6 +1282,7 @@ function buildCategoryChart(catInfo, chkRev, chkCnt) {
   });
 
   document.getElementById('customChartTitle').textContent = catInfo.title;
+  document.getElementById('customChartAvg').textContent = '';
 
   if (customChartInstance) customChartInstance.destroy();
   customChartInstance = new Chart(document.getElementById('customChart'), {
@@ -1380,6 +1381,30 @@ function buildCustomChart(filtered, chkRev, chkCnt, chkHrs, chkRate, fromVal, to
   if (chkHrs) metricNames.push('강의시간');
   if (chkRate) metricNames.push('시간당 강의료');
   document.getElementById('customChartTitle').textContent = fromLabel + ' ~ ' + toLabel + ' | ' + metricNames.join(', ') + ' ' + unitLabel + ' 추이';
+
+  // 평균값 계산 및 표시
+  var avgParts = [];
+  if (chkRev) {
+    var revData = chartData.map(function(m){ return m.revenue; });
+    var revAvg = Math.round(revData.reduce(function(a,b){ return a+b; }, 0) / revData.length);
+    avgParts.push('평균 매출 ' + revAvg.toLocaleString() + '만원');
+  }
+  if (chkCnt) {
+    var cntData = chartData.map(function(m){ return m.count; });
+    var cntAvg = (cntData.reduce(function(a,b){ return a+b; }, 0) / cntData.length).toFixed(1);
+    avgParts.push('평균 강의 ' + cntAvg + '건');
+  }
+  if (chkHrs) {
+    var hrsData = chartData.map(function(m){ return m.hours; });
+    var hrsAvg = (hrsData.reduce(function(a,b){ return a+b; }, 0) / hrsData.length).toFixed(1);
+    avgParts.push('평균 ' + hrsAvg + 'H');
+  }
+  if (chkRate) {
+    var rateData = chartData.map(function(m){ return m.avgRate; });
+    var rateAvg = Math.round(rateData.reduce(function(a,b){ return a+b; }, 0) / rateData.length);
+    avgParts.push('평균 ' + rateAvg.toLocaleString() + '만원/H');
+  }
+  document.getElementById('customChartAvg').textContent = avgParts.length ? '( ' + avgParts.join(' | ') + ' )' : '';
 
   var needDualY = chkRev && (chkCnt || chkHrs || chkRate);
   var scales = {
