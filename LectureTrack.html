@@ -927,7 +927,7 @@ function initAIRangeSelects() {
   var thisYear = new Date().getFullYear();
   [fy, ty].forEach(function(sel) {
     sel.innerHTML = '';
-    for (var y = thisYear - 5; y <= thisYear + 1; y++) {
+    for (var y = 2012; y <= thisYear; y++) {
       sel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
     }
   });
