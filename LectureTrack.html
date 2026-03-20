@@ -1193,10 +1193,8 @@ var customChartInstance = null;
 function initCustomSelects() {
   if (!allData || !allData.monthly || !allData.monthly.length) return;
   var months = allData.monthly.map(function(m) { return m.month; });
-  // 연도/월 목록 추출
-  var yearSet = {};
-  months.forEach(function(m) { yearSet[m.split('-')[0]] = true; });
-  var years = Object.keys(yearSet).sort();
+  // 연도 목록: 2012~현재연도
+  var thisYear = new Date().getFullYear();
 
   var fromYSel = document.getElementById('customFromYear');
   var fromMSel = document.getElementById('customFromMonth');
@@ -1205,10 +1203,10 @@ function initCustomSelects() {
 
   fromYSel.innerHTML = '';
   toYSel.innerHTML = '';
-  years.forEach(function(y) {
+  for (var y = 2012; y <= thisYear; y++) {
     fromYSel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
     toYSel.innerHTML += '<option value="' + y + '">' + y + '년</option>';
-  });
+  }
 
   fromMSel.innerHTML = '';
   toMSel.innerHTML = '';
