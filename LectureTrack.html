@@ -958,6 +958,18 @@ function getAIRange() {
   return { from: from, to: to };
 }
 
+function fmtManwon(v) {
+  // 만원 숫자를 읽기 쉬운 한국어 금액으로 변환
+  // 예: 77300 → "7억7,300만원", 1600 → "1,600만원", 150000 → "15억원"
+  if (v >= 10000) {
+    var eok = Math.floor(v / 10000);
+    var man = v % 10000;
+    if (man === 0) return eok + '억원';
+    return eok + '억' + man.toLocaleString() + '만원';
+  }
+  return v.toLocaleString() + '만원';
+}
+
 function buildDataSummary() {
   if (!allData) return '데이터 없음';
   var cutoff = getCurrentMonthKey();
@@ -987,12 +999,12 @@ function buildDataSummary() {
   var rangeLabel = isSingleMonth ? rangeFrom : rangeFrom + ' ~ ' + rangeTo;
   var s = '※ 오늘 기준(' + cutoff + ')까지의 확정 데이터만 분석합니다. 이후 월은 미확정 예정이므로 제외합니다.\n\n';
   s += '== 분석 기간: ' + rangeLabel + ' ==\n';
-  s += '합계 매출: ' + totalRev + '만원, 강의횟수: ' + totalCnt + '건, 총 강의시간: ' + totalHours + 'H, 평균 시간당 강의료: ' + avgRate + '만원/H\n';
+  s += '합계 매출: ' + fmtManwon(totalRev) + ', 강의횟수: ' + totalCnt + '건, 총 강의시간: ' + totalHours + 'H, 평균 시간당 강의료: ' + avgRate + '만원/H\n';
 
   // 기간 내 월별 상세
   s += '\n== 월별 상세 ==\n';
   rangeMonths.forEach(function(m) {
-    s += m.month + ': 매출 ' + m.revenue + '만원, ' + m.count + '건, ' + (m.hours || 0) + 'H, 평균 ' + m.avgRate + '만원/H';
+    s += m.month + ': 매출 ' + fmtManwon(m.revenue) + ', ' + m.count + '건, ' + (m.hours || 0) + 'H, 평균 ' + m.avgRate + '만원/H';
     if (m.topClients && m.topClients.length) s += ' [고객: ' + m.topClients.map(function(c){ return c.name; }).join(',') + ']';
     s += '\n';
   });
@@ -1004,15 +1016,15 @@ function buildDataSummary() {
     .sort(function(a,b) { return b.revenue - a.revenue; }).slice(0, 5);
 
   s += '\n== 기간 내 Top 고객사 ==\n';
-  topClients.forEach(function(c, i) { s += (i+1) + '. ' + c.name + ': ' + c.revenue + '만원\n'; });
+  topClients.forEach(function(c, i) { s += (i+1) + '. ' + c.name + ': ' + fmtManwon(c.revenue) + '\n'; });
 
   s += '\n== 기간 내 Top 에이전트 ==\n';
-  topAgents.forEach(function(a, i) { s += (i+1) + '. ' + a.name + ': ' + a.revenue + '만원\n'; });
+  topAgents.forEach(function(a, i) { s += (i+1) + '. ' + a.name + ': ' + fmtManwon(a.revenue) + '\n'; });
 
   // 전체 참고 데이터
   var ch = allData.channel;
   s += '\n== 채널 비율 (전체) ==\n';
-  s += '직접: ' + ch.directCnt + '건/' + ch.directRev + '만원, 간접: ' + ch.indirectCnt + '건/' + ch.indirectRev + '만원\n';
+  s += '직접: ' + ch.directCnt + '건/' + fmtManwon(ch.directRev) + ', 간접: ' + ch.indirectCnt + '건/' + fmtManwon(ch.indirectRev) + '\n';
 
   s += '\n== 교육주제 Top 5 (전체) ==\n';
   allData.topTopics.slice(0,5).forEach(function(t){ s += t.name + ': ' + t.count + '건\n'; });
