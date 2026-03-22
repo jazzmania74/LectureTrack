@@ -1026,9 +1026,105 @@ function buildDataSummary() {
   var allTotalRev = 0;
   allMonths.forEach(function(m) { allTotalRev += m.revenue; });
   var allMonthlyAvg = allMonths.length > 0 ? Math.round(allTotalRev / allMonths.length) : 0;
+  var avgPerDeal = totalCnt > 0 ? Math.round(totalRev / totalCnt) : 0;
 
   s += '\n== 전체 기간 참고 통계 ==\n';
   s += '전체 기간: ' + allMonths.length + '개월, 전체 매출 합계: ' + fmtManwon(allTotalRev) + ', 월평균 매출: ' + fmtManwon(allMonthlyAvg) + '\n';
+
+  // ① 전년 동월 비교
+  s += '\n== 전년 동월 비교 ==\n';
+  rangeMonths.forEach(function(m) {
+    var parts = m.month.split('-');
+    var prevYear = (parseInt(parts[0]) - 1) + '-' + parts[1];
+    var prevData = null;
+    for (var i = 0; i < allMonths.length; i++) {
+      if (allMonths[i].month === prevYear) { prevData = allMonths[i]; break; }
+    }
+    if (prevData) {
+      var changeRate = prevData.revenue > 0 ? Math.round((m.revenue - prevData.revenue) / prevData.revenue * 100) : 0;
+      s += m.month + ': ' + fmtManwon(m.revenue) + ' (전년 ' + prevYear + ': ' + fmtManwon(prevData.revenue) + ', ' + (changeRate >= 0 ? '+' : '') + changeRate + '%)\n';
+    } else {
+      s += m.month + ': ' + fmtManwon(m.revenue) + ' (전년 동월 데이터 없음)\n';
+    }
+  });
+
+  // ② 평균 건당 매출
+  s += '\n== 평균 건당 매출 ==\n';
+  s += '분석 기간 평균 건당 매출: ' + fmtManwon(avgPerDeal) + ' (' + totalCnt + '건/' + fmtManwon(totalRev) + ')\n';
+  var allTotalCnt = 0;
+  allMonths.forEach(function(m) { allTotalCnt += m.count; });
+  var allAvgPerDeal = allTotalCnt > 0 ? Math.round(allTotalRev / allTotalCnt) : 0;
+  s += '전체 기간 평균 건당 매출: ' + fmtManwon(allAvgPerDeal) + ' (' + allTotalCnt + '건/' + fmtManwon(allTotalRev) + ')\n';
+
+  // ③ 신규 vs 재구매 고객
+  s += '\n== 신규 vs 재구매 고객 ==\n';
+  var allClientFirstMonth = {};
+  allMonths.forEach(function(m) {
+    if (m.topClients) m.topClients.forEach(function(c) {
+      if (!allClientFirstMonth[c.name] || m.month < allClientFirstMonth[c.name]) {
+        allClientFirstMonth[c.name] = m.month;
+      }
+    });
+  });
+  var newClients = [], repeatClients = [];
+  rangeMonths.forEach(function(m) {
+    if (m.topClients) m.topClients.forEach(function(c) {
+      if (allClientFirstMonth[c.name] && allClientFirstMonth[c.name] >= rangeFrom && allClientFirstMonth[c.name] <= rangeTo) {
+        if (newClients.indexOf(c.name) === -1) newClients.push(c.name);
+      } else {
+        if (repeatClients.indexOf(c.name) === -1) repeatClients.push(c.name);
+      }
+    });
+  });
+  s += '신규 고객(' + newClients.length + '): ' + (newClients.length > 0 ? newClients.join(', ') : '없음') + '\n';
+  s += '재구매 고객(' + repeatClients.length + '): ' + (repeatClients.length > 0 ? repeatClients.join(', ') : '없음') + '\n';
+
+  // ④ 분기별 추세
+  s += '\n== 분기별 매출 추세 ==\n';
+  var quarterMap = {};
+  allMonths.forEach(function(m) {
+    var parts = m.month.split('-');
+    var q = parts[0] + '-Q' + (Math.ceil(parseInt(parts[1]) / 3));
+    if (!quarterMap[q]) quarterMap[q] = { revenue: 0, count: 0, hours: 0 };
+    quarterMap[q].revenue += m.revenue;
+    quarterMap[q].count += m.count;
+    quarterMap[q].hours += (m.hours || 0);
+  });
+  var quarters = Object.keys(quarterMap).sort();
+  quarters.forEach(function(q) {
+    var qd = quarterMap[q];
+    s += q + ': 매출 ' + fmtManwon(qd.revenue) + ', ' + qd.count + '건, ' + qd.hours + 'H\n';
+  });
+
+  // ⑤ 고객 이탈/복귀 분석
+  s += '\n== 고객 이탈/복귀 분석 ==\n';
+  var clientLastMonth = {};
+  allMonths.forEach(function(m) {
+    if (m.topClients) m.topClients.forEach(function(c) {
+      if (!clientLastMonth[c.name] || m.month > clientLastMonth[c.name]) {
+        clientLastMonth[c.name] = m.month;
+      }
+    });
+  });
+  var cutoffParts = cutoff.split('-');
+  var sixMonthsAgo = (parseInt(cutoffParts[1]) <= 6)
+    ? (parseInt(cutoffParts[0]) - 1) + '-' + String(parseInt(cutoffParts[1]) + 6).padStart(2, '0')
+    : cutoffParts[0] + '-' + String(parseInt(cutoffParts[1]) - 6).padStart(2, '0');
+  var dormantClients = [];
+  Object.keys(clientLastMonth).forEach(function(name) {
+    if (clientLastMonth[name] < sixMonthsAgo) {
+      dormantClients.push({ name: name, lastSeen: clientLastMonth[name] });
+    }
+  });
+  dormantClients.sort(function(a, b) { return b.lastSeen > a.lastSeen ? 1 : -1; });
+  if (dormantClients.length > 0) {
+    s += '6개월 이상 거래 없는 기존 고객(재접촉 대상):\n';
+    dormantClients.slice(0, 10).forEach(function(c) {
+      s += '  - ' + c.name + ' (마지막 거래: ' + c.lastSeen + ')\n';
+    });
+  } else {
+    s += '6개월 이상 이탈 고객 없음\n';
+  }
 
   var ch = allData.channel;
   s += '\n== 채널 비율 (전체) ==\n';
