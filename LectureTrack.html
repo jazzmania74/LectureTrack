@@ -1021,7 +1021,15 @@ function buildDataSummary() {
   s += '\n== 기간 내 Top 에이전트 ==\n';
   topAgents.forEach(function(a, i) { s += (i+1) + '. ' + a.name + ': ' + fmtManwon(a.revenue) + '\n'; });
 
-  // 전체 참고 데이터
+  // 전체 참고 데이터 (월평균 포함)
+  var allMonths = allData.monthly.filter(function(m) { return m.month <= cutoff; });
+  var allTotalRev = 0;
+  allMonths.forEach(function(m) { allTotalRev += m.revenue; });
+  var allMonthlyAvg = allMonths.length > 0 ? Math.round(allTotalRev / allMonths.length) : 0;
+
+  s += '\n== 전체 기간 참고 통계 ==\n';
+  s += '전체 기간: ' + allMonths.length + '개월, 전체 매출 합계: ' + fmtManwon(allTotalRev) + ', 월평균 매출: ' + fmtManwon(allMonthlyAvg) + '\n';
+
   var ch = allData.channel;
   s += '\n== 채널 비율 (전체) ==\n';
   s += '직접: ' + ch.directCnt + '건/' + fmtManwon(ch.directRev) + ', 간접: ' + ch.indirectCnt + '건/' + fmtManwon(ch.indirectRev) + '\n';
